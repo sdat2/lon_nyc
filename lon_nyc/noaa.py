@@ -37,8 +37,11 @@ logger = logging.getLogger(__name__)
 S3_BUCKET: str = "noaa-global-hourly-pds"
 
 # Report types that correspond to reliable hourly surface observations.
-# FM-15 = METAR, FM-16 = SPECI (special METAR).  Leave empty to keep all.
-HOURLY_REPORT_TYPES: list[str] = ["FM-15", "FM-16"]
+# FM-15 = METAR (regular hourly).  FM-16 = SPECI (special/non-routine METAR)
+# is excluded because SPECIs are filed sub-hourly during weather changes and
+# their AA1 depths cover variable short periods; including them alongside
+# FM-15s causes significant double-counting of precipitation totals.
+HOURLY_REPORT_TYPES: list[str] = ["FM-15"]
 
 
 # ---------------------------------------------------------------------------
@@ -72,9 +75,12 @@ def generate_s3_file_keys(
     list[str]
         Ordered list of S3 object keys.
     """
+    # The S3 bucket stores files without the hyphen separator, e.g.
+    # "2023/72505394728.csv" rather than "2023/725053-94728.csv".
+    station_id_no_dash = station_id.replace("-", "")
     file_keys: list[str] = []
     for year in range(start_year, end_year + 1):
-        file_keys.append(f"{year}/{station_id}.csv")
+        file_keys.append(f"{year}/{station_id_no_dash}.csv")
     logger.info(
         "Generated %d S3 keys for station %s (%d–%d).",
         len(file_keys),
@@ -157,7 +163,11 @@ def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
     def _extract(val) -> float:
         if pd.isna(val):
             return float("nan")
-        depth_str = str(val).split(",", 1)[0].strip()
+        # AA1 sub-fields: period_hours, depth_tenths_mm, condition_code, quality_code
+        parts = str(val).split(",")
+        if len(parts) < 2:
+            return float("nan")
+        depth_str = parts[1].strip()
         if depth_str in cfg.AA1_MISSING_DEPTHS:
             return float("nan")
         try:
