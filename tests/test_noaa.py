@@ -19,15 +19,15 @@ from lon_nyc import noaa
 
 def test_generate_s3_file_keys_single_year():
     keys = noaa.generate_s3_file_keys("725053-94728", 2023, 2023)
-    assert keys == ["2023/725053-94728.csv"]
+    assert keys == ["2023/72505394728.csv"]
 
 
 def test_generate_s3_file_keys_range():
     keys = noaa.generate_s3_file_keys("725053-94728", 2021, 2023)
     assert keys == [
-        "2021/725053-94728.csv",
-        "2022/725053-94728.csv",
-        "2023/725053-94728.csv",
+        "2021/72505394728.csv",
+        "2022/72505394728.csv",
+        "2023/72505394728.csv",
     ]
 
 
@@ -89,19 +89,19 @@ def test_download_returns_empty_when_all_missing():
 
 
 def test_parse_aa1_depth_normal():
-    series = pd.Series(["0005,01,C,5"])  # 0.5 mm
+    series = pd.Series(["0005,0050,C,5"])  # depth = 50 tenths = 5.0 mm
     result = noaa.parse_aa1_depth_mm(series)
-    assert pytest.approx(result.iloc[0]) == 0.5
+    assert pytest.approx(result.iloc[0]) == 5.0
 
 
 def test_parse_aa1_depth_zero():
-    series = pd.Series(["0000,01,C,5"])
+    series = pd.Series(["0001,0000,C,5"])  # depth = 0 tenths = 0.0 mm
     result = noaa.parse_aa1_depth_mm(series)
     assert result.iloc[0] == 0.0
 
 
 def test_parse_aa1_depth_missing_sentinel():
-    series = pd.Series(["9999,01,C,5"])
+    series = pd.Series(["0001,9999,C,5"])  # missing sentinel
     result = noaa.parse_aa1_depth_mm(series)
     assert np.isnan(result.iloc[0])
 
@@ -113,9 +113,9 @@ def test_parse_aa1_depth_nan_input():
 
 
 def test_parse_aa1_depth_mixed():
-    series = pd.Series(["0010,01,C,5", "9999,01,C,5", "0000,01,C,5"])
+    series = pd.Series(["0001,0100,C,5", "0001,9999,C,5", "0001,0000,C,5"])
     result = noaa.parse_aa1_depth_mm(series)
-    assert pytest.approx(result.iloc[0]) == 1.0
+    assert pytest.approx(result.iloc[0]) == 10.0
     assert np.isnan(result.iloc[1])
     assert result.iloc[2] == 0.0
 
@@ -131,7 +131,8 @@ def _make_raw_df(**kwargs) -> pd.DataFrame:
         "DATE": ["2023-06-01T10:00:00", "2023-06-01T11:00:00"],
         "STATION": ["725053-94728", "725053-94728"],
         "REPORT_TYPE": ["FM-15", "FM-15"],
-        "AA1": ["0005,01,C,5", "0000,01,C,5"],
+        # AA1 format: period_hours,depth_tenths_mm,condition_code,quality_code
+        "AA1": ["0001,0050,C,5", "0001,0000,C,5"],
     }
     defaults.update(kwargs)
     return pd.DataFrame(defaults)
@@ -148,14 +149,14 @@ def test_process_creates_precipitation_mm_column():
 
 
 def test_process_converts_units_correctly():
-    raw = _make_raw_df(AA1=["0050,01,C,5", "0100,01,C,5"])
+    raw = _make_raw_df(AA1=["0001,0050,C,5", "0001,0100,C,5"])  # 5.0 mm, 10.0 mm
     df = noaa.process_precipitation_data(raw, report_types=[])
     assert pytest.approx(df["precipitation_mm"].iloc[0]) == 5.0
     assert pytest.approx(df["precipitation_mm"].iloc[1]) == 10.0
 
 
 def test_process_missing_becomes_nan():
-    raw = _make_raw_df(AA1=["9999,01,C,5", "0005,01,C,5"])
+    raw = _make_raw_df(AA1=["0001,9999,C,5", "0001,0050,C,5"])  # missing, then 5.0 mm
     df = noaa.process_precipitation_data(raw, report_types=[])
     assert np.isnan(df["precipitation_mm"].iloc[0])
     assert not np.isnan(df["precipitation_mm"].iloc[1])

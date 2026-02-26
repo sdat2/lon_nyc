@@ -48,7 +48,10 @@ S3_BUCKET: str = "noaa-global-hourly-pds"
 # is excluded because SPECIs are filed sub-hourly during weather changes and
 # their AA1 depths cover variable short periods; including them alongside
 # FM-15s causes significant double-counting of precipitation totals.
-HOURLY_REPORT_TYPES: list[str] = ["FM-15"]
+# FM-12 = SYNOP (WMO surface synoptic observation, used at many non-US stations
+# such as London Heathrow, where AA1 precipitation data is reported on FM-12
+# rows rather than FM-15 rows).
+HOURLY_REPORT_TYPES: list[str] = ["FM-15", "FM-12"]
 
 
 # ---------------------------------------------------------------------------

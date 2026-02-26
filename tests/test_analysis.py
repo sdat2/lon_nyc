@@ -1,4 +1,4 @@
-"""Tests for lon_nyc.analysis – rainy-hour summary statistics."""
+"""Tests for lon_nyc.analysis – rainy-hour and annual summary statistics."""
 
 from __future__ import annotations
 
@@ -87,3 +87,92 @@ def test_summary_nan_rows_excluded_from_total():
     result = analysis.rainy_hours_summary(df)
     assert result["total_hours"] == 2
     assert result["rainy_hours"] == 2
+
+
+# ---------------------------------------------------------------------------
+# annual_summary
+# ---------------------------------------------------------------------------
+
+
+def _make_annual_df(records: list[tuple]) -> pd.DataFrame:
+    """Build a processed DataFrame spanning multiple years.
+
+    ``records`` is a list of (iso_datetime_str, precip_mm) tuples.
+    """
+    timestamps = pd.DatetimeIndex(
+        [pd.Timestamp(dt, tz="UTC") for dt, _ in records]
+    )
+    values = [v for _, v in records]
+    return pd.DataFrame({"precipitation_mm": values}, index=timestamps)
+
+
+def test_annual_single_year_totals():
+    df = _make_annual_df([
+        ("2022-06-01 00:00", 1.0),
+        ("2022-06-01 01:00", 2.5),
+        ("2022-06-02 00:00", 0.0),
+        ("2022-06-03 00:00", 0.8),
+    ])
+    result = analysis.annual_summary(df)
+    assert len(result) == 1
+    assert result.iloc[0]["year"] == 2022
+    assert pytest.approx(result.iloc[0]["total_precip_mm"]) == 4.3
+    assert result.iloc[0]["rainy_hours"] == 3
+    assert result.iloc[0]["rainy_days"] == 2
+
+
+def test_annual_multi_year_row_count():
+    df = _make_annual_df([
+        ("2021-03-01 00:00", 1.0),
+        ("2022-07-15 12:00", 2.0),
+        ("2023-11-20 06:00", 0.5),
+    ])
+    result = analysis.annual_summary(df)
+    assert list(result["year"]) == [2021, 2022, 2023]
+
+
+def test_annual_rainy_days_same_day_multiple_hours():
+    """Multiple rainy hours on the same day count as only one rainy day."""
+    df = _make_annual_df([
+        ("2023-05-10 08:00", 1.0),
+        ("2023-05-10 09:00", 0.8),
+        ("2023-05-10 10:00", 1.2),
+    ])
+    result = analysis.annual_summary(df)
+    assert result.iloc[0]["rainy_days"] == 1
+    assert result.iloc[0]["rainy_hours"] == 3
+
+
+def test_annual_all_dry_year():
+    df = _make_annual_df([
+        ("2020-01-01 00:00", 0.0),
+        ("2020-06-15 12:00", 0.0),
+    ])
+    result = analysis.annual_summary(df)
+    assert result.iloc[0]["rainy_hours"] == 0
+    assert result.iloc[0]["rainy_days"] == 0
+    assert pytest.approx(result.iloc[0]["total_precip_mm"]) == 0.0
+
+
+def test_annual_label_propagated():
+    df = _make_annual_df([("2023-01-01 00:00", 1.0)])
+    result = analysis.annual_summary(df, label="Test City")
+    assert all(result["label"] == "Test City")
+
+
+def test_annual_empty_dataframe_returns_empty():
+    result = analysis.annual_summary(pd.DataFrame())
+    assert len(result) == 0
+
+
+def test_annual_column_order():
+    df = _make_annual_df([("2023-04-01 00:00", 2.0)])
+    result = analysis.annual_summary(df, label="X")
+    assert list(result.columns) == ["label", "year", "total_precip_mm", "rainy_hours", "rainy_days"]
+
+
+def test_annual_rainy_days_integer_dtype():
+    df = _make_annual_df([("2023-01-01 00:00", 1.0)])
+    result = analysis.annual_summary(df)
+    assert result["rainy_days"].dtype == int
+    assert result["rainy_hours"].dtype == int

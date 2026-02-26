@@ -1,12 +1,19 @@
-"""Station configuration for the NYC rain analysis.
+"""Station configuration for the lon_nyc rain analysis.
 
 NOAA ISD station IDs have the form ``USAF-WBAN``.  Note that the S3
 object key omits the hyphen (e.g. ``2023/72505394728.csv``).
+UK stations have no WBAN code; the placeholder ``99999`` is used instead.
 """
 
 # NYC Central Park (ASOS station), USAF 725053, WBAN 94728
 NYC_STATION_ID: str = "725053-94728"
 NYC_LABEL: str = "New York City (Central Park)"
+
+# London Heathrow (EGLL), USAF 037720, WBAN 99999 (UK placeholder)
+# WMO station 03772; the standard Met Office benchmark station for London.
+# S3 key format: YYYY/03772099999.csv
+LON_STATION_ID: str = "037720-99999"
+LON_LABEL: str = "London (Heathrow)"
 
 # Precipitation column name used in ISD CSV files from noaa-global-hourly-pds.
 # The compound field AA1 encodes liquid precipitation accumulation.
@@ -23,4 +30,9 @@ HOURLY_PRECIP_MISSING: frozenset = frozenset(
 )
 
 # Threshold (mm) above which an hour is considered "rainy".
-RAINY_THRESHOLD_MM: float = 0.0
+# 0.254 mm = 0.01 inch, the standard WMO / US NWS definition of a measurable
+# precipitation event and the basis for "rainy day" counts on Wikipedia climate
+# tables. Using > 0.0 mm inflates London's counts because FM-12 SYNOP reports
+# frequently record sub-trace amounts (0.1–0.2 mm drizzle) that FM-15 METAR
+# stations (like NYC Central Park) encode as condition-code 2 / depth 0 instead.
+RAINY_THRESHOLD_MM: float = 0.254
