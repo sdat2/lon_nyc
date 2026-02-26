@@ -1,21 +1,28 @@
 """Download and process NOAA Integrated Surface Database (ISD) hourly data.
 
-Data are stored on AWS as a public S3 bucket:
-    s3://noaa-global-hourly-pds/YYYY/USAF-WBAN.csv
+Data are stored on the public AWS S3 bucket ``noaa-global-hourly-pds``.
+The object key format is ``YYYY/USAFWBAN.csv`` — note that the hyphen
+between the USAF and WBAN identifiers is **omitted** in the key, even
+though the station ID is conventionally written as ``USAF-WBAN``.
 
-Precipitation is encoded in the compound ``AA1`` field with sub-fields
-separated by commas::
+Precipitation is encoded in the compound ``AA1`` field.  The four
+comma-separated sub-fields are::
 
-    depth_tenths_mm,period_hours,condition_code,quality_code
+    period_hours,depth_tenths_mm,condition_code,quality_code
 
-For example ``"0005,01,C,5"`` means 0.5 mm over the last 1 hour.
-A depth value of ``"9999"`` signals a missing observation.
+For example ``"01,0005,C,5"`` means 0.5 mm accumulated over the last
+1 hour.  A depth value of ``"9999"`` or ``"+9999"`` signals a missing
+observation.
+
+Only FM-15 (regular hourly METAR) observations are used.  FM-16 SPECI
+reports are excluded because they are filed sub-hourly during significant
+weather changes; their AA1 accumulation periods are shorter and variable,
+so mixing them with FM-15s causes substantial double-counting.
 
 Units
 -----
-ISD depth is in **tenths of millimetres**; this module converts to **mm**
-before returning results.  No further unit conversion is applied for
-international stations (Heathrow reports in the same units).
+ISD AA1 depth is in **tenths of millimetres**; this module converts to
+**mm** before returning results.
 """
 
 from __future__ import annotations
@@ -59,12 +66,16 @@ def generate_s3_file_keys(
 ) -> list[str]:
     """Generate S3 object keys for *station_id* over ``[start_year, end_year]``.
 
-    The ISD path convention is ``YYYY/USAF-WBAN.csv``.
+    The ISD S3 key format is ``YYYY/USAFWBAN.csv`` — the hyphen that
+    separates the USAF and WBAN codes in the conventional ``USAF-WBAN``
+    station ID string is **not** present in the filename.  For example,
+    station ``725053-94728`` maps to the key ``2023/72505394728.csv``.
 
     Parameters
     ----------
     station_id:
         Station identifier in ``USAF-WBAN`` format, e.g. ``"725053-94728"``.
+        The hyphen is stripped automatically when constructing the S3 key.
     start_year:
         First year to include (inclusive).
     end_year:
@@ -144,10 +155,14 @@ def download_and_concatenate_s3_csvs(
 def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
     """Extract precipitation depth (mm) from the ISD ``AA1`` compound field.
 
-    The ``AA1`` field has the form ``depth,period,condition,quality`` where
-    *depth* is an integer in **tenths of millimetres**.  Missing observations
-    are coded as ``9999``.  Trace precipitation is not explicitly flagged in
-    this field; a depth of ``0`` is treated as 0 mm.
+    The ``AA1`` field has the form::
+
+        period_hours,depth_tenths_mm,condition_code,quality_code
+
+    The **depth** is the *second* sub-field (index 1), given as an integer
+    in tenths of millimetres.  Missing observations are coded as ``9999``
+    or ``+9999``; these are returned as NaN.  A depth of ``0`` (no
+    measurable precipitation) is returned as 0.0 mm.
 
     Parameters
     ----------

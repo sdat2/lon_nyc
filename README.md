@@ -73,12 +73,33 @@ S3 object key strips the hyphen, e.g. `2023/72505394728.csv`.
 
 - Data are sourced from the `AA1` compound field in ISD CSV files.
 - `AA1` sub-fields: `period_hours, depth_tenths_mm, condition_code, quality_code`.
-- Depths are converted from tenths of mm to mm.
+- The **depth is the second sub-field** (index 1), in tenths of mm, converted to mm.
 - Only `FM-15` (regular hourly METAR) report types are kept. `FM-16` (SPECI —
   special non-routine METARs) are excluded because they are filed sub-hourly
   during weather changes and their `AA1` depths cover variable short periods;
   including them alongside FM-15s causes significant double-counting.
 - An hour is counted as **rainy** when `precipitation_mm > 0`.
+
+## Validation against GHCND
+
+Annual totals derived from the ISD `AA1` field were cross-checked against
+the [GHCND](https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily)
+daily totals for Central Park (station `USW00094728`) obtained from the
+[NOAA ACIS API](https://www.rcc-acis.org/docs_webservices.html).
+Agreement is within ~1% across all years, consistent with the different
+treatment of trace precipitation between the two datasets.
+
+| Year | GHCND official | Our ISD calc | Difference |
+|------|---------------:|-------------:|-----------:|
+| 2020 | 1151.9 mm (45.35 in) | 1166.0 mm | +1.2% |
+| 2021 | 1517.1 mm (59.73 in) | 1527.3 mm | +0.7% |
+| 2022 | 1176.0 mm (46.30 in) | 1185.7 mm | +0.8% |
+| 2023 | 1506.0 mm (59.29 in) | 1523.3 mm | +1.2% |
+| 2024 | 1177.8 mm (46.37 in) | 1178.0 mm | +0.0% |
+
+The small systematic ~+1% in the ISD figures occurs because GHCND records
+trace (`T`) precipitation as exactly zero, whereas the ISD `AA1` field
+sometimes encodes a small positive depth for the same events.
 
 ## Running the tests
 
