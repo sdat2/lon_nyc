@@ -321,9 +321,36 @@ No equivalent observed sunshine record exists in any public US network:
 | GHCND `TSUN` — Central Park, JFK, LaGuardia | 0 / 365 days populated |
 | NOAA LCD `HourlySkyConditions` | Cloud-layer codes only; no duration |
 | ISD GF1 sky-cover oktas | Invalid proxy — counts night-time clear sky |
-| ISD REM `55SSS` SYNOP groups | Sparse (≈219 obs/yr) and unreliable |
+| ISD `REM` `55SSS` SYNOP groups — Central Park / JFK / LaGuardia | Sparse and unreliable (see Newark analysis below) |
+| ISD `REM` `55SSS` SYNOP groups — **Newark EWR** (`725020-14734`) | See detailed investigation below |
 | Open-Meteo ERA5 reanalysis | Modelled, not observed; inflates ~60 % vs Met Office actuals |
 
-US ASOS/AWOS stations do not deploy sunshine-duration recorders, so no
-like-for-like observed comparison is currently possible. Implementation is
-deferred until an equivalent NYC source is identified.
+#### Newark EWR investigation
+
+Newark Liberty International Airport is the closest major weather station to
+NYC that files SYNOP (FM-12) reports via the ISD, and was investigated as a
+possible sunshine-recorder proxy for NYC.  The ISD `REM` field was parsed for
+WMO SYNOP `55SSS` groups (sunshine duration in tenths of hours since the last
+observation) across 2020–2024, with sentinel values ≥ 300 excluded.
+
+| Year | Newark SYN rows | Real `55SSS` obs | Implied sunshine hrs | Avg hr/day |
+|------|----------------:|-----------------:|---------------------:|-----------:|
+| 2020 | 1 450 | 96 | 51 | 0.1 |
+| 2021 | 1 436 | 89 | 39 | 0.1 |
+| 2022 | 1 449 | 101 | 44 | 0.1 |
+| 2023 | 1 655 | 102 | 46 | 0.1 |
+| 2024 | 2 775 | 219 | 101 | 0.3 |
+
+For comparison, Heathrow logs 634–941 real `55SSS` observations per year and
+implies 1 250–1 680 sunshine hours annually (≈ 3.4–4.6 hr/day) — physically
+plausible for a Campbell-Stokes recorder.  Newark's implied totals of
+39–101 hours per year (≈ 0.1 hr/day) are physically impossible and confirm
+that **Newark does not operate a sunshine-duration recorder**.  The sparse
+`55SSS` groups that do appear are opportunistic entries in manually augmented
+SYNOP messages, not systematic instrument readings.
+
+**Conclusion:** Newark EWR is not a usable sunshine source.  Like all US
+ASOS/AWOS stations it does not deploy a sunshine-duration recorder, and its
+ISD `55SSS` data are too sparse and unreliable to serve as a proxy.
+Implementation is deferred until an equivalent NYC observed-sunshine source is
+identified.
