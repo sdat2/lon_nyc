@@ -314,24 +314,29 @@ from the **Met Office MIDAS Open** dataset via
   `POST https://services.ceda.ac.uk/api/token/create/`
 
 ### NYC
-No equivalent observed sunshine record exists in any public US network:
+No equivalent observed sunshine record exists in any public US network.  The
+following sources were investigated:
 
 | Source | Outcome |
 |--------|---------|
-| GHCND `TSUN` — Central Park, JFK, LaGuardia | 0 / 365 days populated |
+| GHCND `TSUN` — Central Park, JFK, LaGuardia | 0 / 365 days populated in 2020–2024 |
 | NOAA LCD `HourlySkyConditions` | Cloud-layer codes only; no duration |
-| ISD GF1 sky-cover oktas | Invalid proxy — counts night-time clear sky |
-| ISD `REM` `55SSS` SYNOP groups — Central Park / JFK / LaGuardia | Sparse and unreliable (see Newark analysis below) |
-| ISD `REM` `55SSS` SYNOP groups — **Newark EWR** (`725020-14734`) | See detailed investigation below |
-| Open-Meteo ERA5 reanalysis | Modelled, not observed; inflates ~60 % vs Met Office actuals |
+| ISD `GF1` sky-cover oktas | Invalid proxy — counts night-time clear sky |
+| ISD `REM` `55SSS` SYNOP groups — Central Park / JFK / LaGuardia | Sparse and unreliable |
+| ISD `REM` `55SSS` SYNOP groups — **Newark EWR** (`725020-14734`) | Investigated in detail below; not usable |
+| NOAA SURFRAD / SolRad-Net pyranometer networks | Nearest station is Penn State, PA (≈ 250 km); no NYC-area site |
+| NOAA US Climate Reference Network (USCRN) | No station within NYC or close suburbs |
+| NASA AERONET — CCNY (`40.82°N, 73.95°W`) and GISS (`40.80°N, 73.96°W`) | Cimel direct-sun photometers only observe when the sun is unobscured, so obs presence ≠ cloud-free sky; additionally Level 1.5 data are cloud-screened (cloudy obs removed), gaps cannot be distinguished from instrument downtime (e.g. a 6-day outage Jun 18–24 2023), and the SZA cutoff (≈ 78°) causes systematic undercounting of ~2–3 h/day near sunrise/sunset |
+| NOAA 1961–1990 climate normals (`TSUN`) — Central Park | Monthly normals exist (≈ 2 535 hrs/yr) but the underlying sunshine recorder was discontinued; no equivalent hourly series for 2020–2024 |
+| Open-Meteo ERA5 reanalysis | Modelled, not observed; inflates ≈ 60 % vs Met Office actuals |
 
 #### Newark EWR investigation
 
-Newark Liberty International Airport is the closest major weather station to
-NYC that files SYNOP (FM-12) reports via the ISD, and was investigated as a
-possible sunshine-recorder proxy for NYC.  The ISD `REM` field was parsed for
-WMO SYNOP `55SSS` groups (sunshine duration in tenths of hours since the last
-observation) across 2020–2024, with sentinel values ≥ 300 excluded.
+Newark Liberty International Airport (`725020-14734`) is the closest major
+weather station to NYC that files SYNOP (FM-12) reports in the ISD, and was
+investigated as a possible sunshine-recorder proxy.  The ISD `REM` field was
+parsed for WMO SYNOP `55SSS` groups (sunshine duration in tenths of hours since
+the last observation) across 2020–2024, excluding sentinel values ≥ 300.
 
 | Year | Newark SYN rows | Real `55SSS` obs | Implied sunshine hrs | Avg hr/day |
 |------|----------------:|-----------------:|---------------------:|-----------:|
@@ -349,8 +354,11 @@ that **Newark does not operate a sunshine-duration recorder**.  The sparse
 `55SSS` groups that do appear are opportunistic entries in manually augmented
 SYNOP messages, not systematic instrument readings.
 
-**Conclusion:** Newark EWR is not a usable sunshine source.  Like all US
-ASOS/AWOS stations it does not deploy a sunshine-duration recorder, and its
-ISD `55SSS` data are too sparse and unreliable to serve as a proxy.
-Implementation is deferred until an equivalent NYC observed-sunshine source is
-identified.
+**Conclusion:** No observed sunshine-duration series for NYC is available for
+2020–2024 in any public network.  US ASOS/AWOS stations do not deploy
+sunshine-duration recorders, the radiation monitoring networks (SURFRAD,
+SolRad-Net, USCRN) have no NYC-area site, and the AERONET instruments at CCNY
+and GISS measure aerosol optical depth rather than irradiance.  Historical NOAA
+normals show ≈ 2 535 sunshine hours/yr for the 1961–1990 period, but the
+underlying instrument record has not been continued.  Implementation is deferred
+until an equivalent NYC observed-sunshine source is identified.
