@@ -176,3 +176,112 @@ def test_annual_rainy_days_integer_dtype():
     result = analysis.annual_summary(df)
     assert result["rainy_days"].dtype == int
     assert result["rainy_hours"].dtype == int
+
+
+# ---------------------------------------------------------------------------
+# annual_temperature_summary
+# ---------------------------------------------------------------------------
+
+
+def _make_temp_df(records: list[tuple]) -> pd.DataFrame:
+    """Build a processed temperature DataFrame.
+
+    ``records`` is a list of (iso_datetime_str, temp_c) tuples.
+    """
+    timestamps = pd.DatetimeIndex(
+        [pd.Timestamp(dt, tz="UTC") for dt, _ in records]
+    )
+    values = [v for _, v in records]
+    return pd.DataFrame({"temp_c": values}, index=timestamps)
+
+
+_BASELINES = {"comfort": 21.0}
+
+
+def test_temp_summary_mean_cold_dev():
+    """All obs below baseline: cold dev = (21 - T), warm dev = 0."""
+    df = _make_temp_df([
+        ("2023-01-01 00:00", 11.0),  # 10 below
+        ("2023-01-01 01:00", 16.0),  # 5 below
+    ])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert len(result) == 1
+    assert pytest.approx(result.iloc[0]["mean_cold_dev_c"]) == 7.5
+    assert pytest.approx(result.iloc[0]["mean_warm_dev_c"]) == 0.0
+    assert pytest.approx(result.iloc[0]["mean_abs_dev_c"]) == 7.5
+
+
+def test_temp_summary_mean_warm_dev():
+    """All obs above baseline: warm dev = (T - 21), cold dev = 0."""
+    df = _make_temp_df([
+        ("2023-07-01 12:00", 25.0),  # 4 above
+        ("2023-07-01 13:00", 27.0),  # 6 above
+    ])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert pytest.approx(result.iloc[0]["mean_warm_dev_c"]) == 5.0
+    assert pytest.approx(result.iloc[0]["mean_cold_dev_c"]) == 0.0
+
+
+def test_temp_summary_mixed_dev():
+    """One obs below, one above: both deviations contribute."""
+    df = _make_temp_df([
+        ("2023-01-01 00:00", 17.0),  # 4 below 21
+        ("2023-07-01 00:00", 25.0),  # 4 above 21
+    ])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert pytest.approx(result.iloc[0]["mean_cold_dev_c"]) == 2.0   # 4/2
+    assert pytest.approx(result.iloc[0]["mean_warm_dev_c"]) == 2.0   # 4/2
+    assert pytest.approx(result.iloc[0]["mean_abs_dev_c"]) == 4.0
+
+
+def test_temp_summary_multi_year():
+    df = _make_temp_df([
+        ("2021-06-01 00:00", 10.0),
+        ("2022-06-01 00:00", 30.0),
+    ])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert list(result["year"]) == [2021, 2022]
+
+
+def test_temp_summary_multiple_baselines():
+    df = _make_temp_df([("2023-01-01 00:00", 10.0)])
+    baselines = {"low": 15.5, "high": 21.0}
+    result = analysis.annual_temperature_summary(df, baselines_c=baselines)
+    assert len(result) == 2
+    assert set(result["baseline_label"]) == {"low", "high"}
+    # At 10°C: cold_dev from 15.5 baseline = 5.5; from 21.0 = 11.0
+    low_row = result[result["baseline_label"] == "low"].iloc[0]
+    high_row = result[result["baseline_label"] == "high"].iloc[0]
+    assert pytest.approx(low_row["mean_cold_dev_c"]) == 5.5
+    assert pytest.approx(high_row["mean_cold_dev_c"]) == 11.0
+
+
+def test_temp_summary_n_obs_counts_valid_only():
+    df = _make_temp_df([
+        ("2023-01-01 00:00", 10.0),
+        ("2023-01-01 01:00", 20.0),
+    ])
+    # Manually inject a NaN (as if it were a missing sentinel)
+    df.iloc[1, 0] = float("nan")
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert result.iloc[0]["n_obs"] == 1
+
+
+def test_temp_summary_label_propagated():
+    df = _make_temp_df([("2023-01-01 00:00", 10.0)])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES, label="Test City")
+    assert all(result["label"] == "Test City")
+
+
+def test_temp_summary_empty_returns_empty():
+    result = analysis.annual_temperature_summary(pd.DataFrame())
+    assert len(result) == 0
+
+
+def test_temp_summary_column_order():
+    df = _make_temp_df([("2023-01-01 00:00", 10.0)])
+    result = analysis.annual_temperature_summary(df, baselines_c=_BASELINES)
+    assert list(result.columns) == [
+        "label", "year", "baseline_label", "baseline_c",
+        "n_obs", "mean_cold_dev_c", "mean_warm_dev_c", "mean_abs_dev_c",
+    ]

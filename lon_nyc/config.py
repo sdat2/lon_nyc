@@ -29,6 +29,29 @@ HOURLY_PRECIP_MISSING: frozenset = frozenset(
     {"99999", "+99999", "99999.0", "+99999.0", "T"}
 )
 
+# Temperature column name in ISD CSV files.
+# Format: "+TTTT,Q" where TTTT is temperature in tenths of °C (signed),
+# and Q is a quality flag.  Missing value sentinel is "+9999".
+TMP_COLUMN: str = "TMP"
+TMP_MISSING: frozenset = frozenset({"+9999", "9999", "+99999"})
+
+# Comfort baseline temperatures (°C) used for the "temperature discomfort"
+# metric.  For each baseline the mean deviation below (too cold) and above
+# (too warm) is computed across all valid hourly observations, then reported
+# in °C per observation so that stations with different observation densities
+# are directly comparable.
+#
+# Baselines chosen:
+#   15.5°C – standard engineering Heating Degree Day base (WMO / UK Met Office)
+#   18.0°C – standard Cooling Degree Day base
+#   21.0°C – a comfortable indoor/outdoor temperature often cited in comfort
+#             studies; maximises sensitivity to both heating and cooling loads
+COMFORT_BASELINES_C: dict[str, float] = {
+    "HDD base (15.5°C)": 15.5,
+    "CDD base (18°C)": 18.0,
+    "Comfort base (21°C)": 21.0,
+}
+
 # Threshold (mm) above which an hour is considered "rainy".
 # 0.254 mm = 0.01 inch, the standard WMO / US NWS definition of a measurable
 # precipitation event and the basis for "rainy day" counts on Wikipedia climate

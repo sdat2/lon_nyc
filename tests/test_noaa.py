@@ -204,3 +204,107 @@ def test_process_missing_aa1_column_gives_nan_precip():
     df = noaa.process_precipitation_data(raw, report_types=[])
     assert "precipitation_mm" in df.columns
     assert df["precipitation_mm"].isna().all()
+
+
+# ---------------------------------------------------------------------------
+# parse_tmp_celsius
+# ---------------------------------------------------------------------------
+
+
+def _tmp_series(*vals) -> pd.Series:
+    return pd.Series(list(vals))
+
+
+def test_parse_tmp_positive():
+    result = noaa.parse_tmp_celsius(_tmp_series("+0215,1"))
+    assert pytest.approx(result.iloc[0]) == 21.5
+
+
+def test_parse_tmp_negative():
+    result = noaa.parse_tmp_celsius(_tmp_series("-0056,1"))
+    assert pytest.approx(result.iloc[0]) == -5.6
+
+
+def test_parse_tmp_zero():
+    result = noaa.parse_tmp_celsius(_tmp_series("+0000,1"))
+    assert pytest.approx(result.iloc[0]) == 0.0
+
+
+def test_parse_tmp_missing_sentinel_9999():
+    result = noaa.parse_tmp_celsius(_tmp_series("+9999,9"))
+    assert pd.isna(result.iloc[0])
+
+
+def test_parse_tmp_nan_input():
+    result = noaa.parse_tmp_celsius(_tmp_series(float("nan")))
+    assert pd.isna(result.iloc[0])
+
+
+def test_parse_tmp_multiple_values():
+    result = noaa.parse_tmp_celsius(_tmp_series("+0100,1", "+0200,1", "+9999,9"))
+    assert pytest.approx(result.iloc[0]) == 10.0
+    assert pytest.approx(result.iloc[1]) == 20.0
+    assert pd.isna(result.iloc[2])
+
+
+# ---------------------------------------------------------------------------
+# process_temperature_data
+# ---------------------------------------------------------------------------
+
+
+def _make_raw_temp_df(
+    dates=("2023-06-01T12:00:00",),
+    tmp_vals=("+0200,1",),
+    report_types=("FM-15",),
+) -> pd.DataFrame:
+    return pd.DataFrame({
+        "DATE": list(dates),
+        "TMP": list(tmp_vals),
+        "REPORT_TYPE": list(report_types),
+    })
+
+
+def test_process_temperature_basic():
+    raw = _make_raw_temp_df()
+    df = noaa.process_temperature_data(raw, report_types=[])
+    assert "temp_c" in df.columns
+    assert pytest.approx(df["temp_c"].iloc[0]) == 20.0
+
+
+def test_process_temperature_filters_report_type():
+    raw = _make_raw_temp_df(
+        dates=("2023-01-01T00:00:00", "2023-01-01T01:00:00"),
+        tmp_vals=("+0100,1", "+0200,1"),
+        report_types=("FM-15", "FM-16"),
+    )
+    df = noaa.process_temperature_data(raw, report_types=["FM-15"])
+    assert len(df) == 1
+    assert pytest.approx(df["temp_c"].iloc[0]) == 10.0
+
+
+def test_process_temperature_deduplicates():
+    raw = _make_raw_temp_df(
+        dates=("2023-03-01T06:00:00", "2023-03-01T06:00:00"),
+        tmp_vals=("+0150,1", "+0160,1"),
+        report_types=("FM-15", "FM-15"),
+    )
+    df = noaa.process_temperature_data(raw, report_types=[])
+    assert len(df) == 1
+    assert pytest.approx(df["temp_c"].iloc[0]) == 15.0
+
+
+def test_process_temperature_missing_tmp_gives_nan():
+    raw = _make_raw_temp_df(tmp_vals=("+9999,9",))
+    df = noaa.process_temperature_data(raw, report_types=[])
+    assert pd.isna(df["temp_c"].iloc[0])
+
+
+def test_process_temperature_empty_returns_empty():
+    df = noaa.process_temperature_data(pd.DataFrame())
+    assert df.empty
+
+
+def test_process_temperature_missing_date_returns_empty():
+    raw = pd.DataFrame({"TMP": ["+0100,1"]})
+    df = noaa.process_temperature_data(raw)
+    assert df.empty

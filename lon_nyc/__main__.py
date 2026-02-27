@@ -39,6 +39,20 @@ def _fetch_annual(
     return analysis.annual_summary(processed, label=label)
 
 
+def _fetch_annual_temperature(
+    s3,
+    station_id: str,
+    label: str,
+    start: int,
+    end: int,
+) -> pd.DataFrame:
+    """Download ISD data for one station and return annual temperature summary rows."""
+    keys = noaa.generate_s3_file_keys(station_id, start, end)
+    raw = noaa.download_and_concatenate_s3_csvs(s3, noaa.S3_BUCKET, keys)
+    processed = noaa.process_temperature_data(raw)
+    return analysis.annual_temperature_summary(processed, label=label)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=(
@@ -62,14 +76,18 @@ def main(argv: list[str] | None = None) -> None:
     ]
 
     frames = []
+    temp_frames = []
     for station_id, label in stations:
-        df = _fetch_annual(s3, station_id, label, args.start, args.end)
-        frames.append(df)
+        frames.append(_fetch_annual(s3, station_id, label, args.start, args.end))
+        temp_frames.append(_fetch_annual_temperature(s3, station_id, label, args.start, args.end))
 
     combined = pd.concat(frames, ignore_index=True)
     combined = combined.sort_values(["year", "label"]).reset_index(drop=True)
 
-    # ── Print comparison table ────────────────────────────────────────────────
+    combined_temp = pd.concat(temp_frames, ignore_index=True)
+    combined_temp = combined_temp.sort_values(["year", "baseline_c", "label"]).reset_index(drop=True)
+
+    # ── Print precipitation table ─────────────────────────────────────────────
     print(
         f"\n{'Annual Precipitation Summary':=^72}\n"
         f"{'Years':>4} {args.start}–{args.end} | "
@@ -87,9 +105,35 @@ def main(argv: list[str] | None = None) -> None:
             f"{int(row['rainy_hours']):>10} "
             f"{int(row['rainy_days']):>11}"
         )
-        # Blank line between years for readability
         if row.name < len(combined) - 1 and combined.loc[row.name + 1, "year"] != row["year"]:
             print()
+
+    # ── Print temperature discomfort table ────────────────────────────────────
+    print(
+        f"\n{'Annual Temperature Discomfort (mean °C deviation per obs)':=^80}\n"
+        f"{'Years':>4} {args.start}–{args.end} | "
+        f"baselines: {', '.join(f'{b}°C' for b in config.COMFORT_BASELINES_C.values())}\n"
+    )
+
+    temp_header = (
+        f"{'Year':<6} {'City':<32} {'Baseline':>18} "
+        f"{'Cold dev':>10} {'Warm dev':>10} {'Total dev':>10}"
+    )
+    print(temp_header)
+    print("-" * len(temp_header))
+
+    prev_year = None
+    for _, row in combined_temp.iterrows():
+        yr = int(row["year"])
+        if prev_year is not None and yr != prev_year:
+            print()
+        prev_year = yr
+        print(
+            f"{yr:<6} {row['label']:<32} {row['baseline_label']:>18} "
+            f"{row['mean_cold_dev_c']:>10.2f} "
+            f"{row['mean_warm_dev_c']:>10.2f} "
+            f"{row['mean_abs_dev_c']:>10.2f}"
+        )
 
 
 if __name__ == "__main__":

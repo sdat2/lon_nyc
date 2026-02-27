@@ -89,6 +89,15 @@ Year   City                             Total (mm)  Rainy hrs  Rainy days
 2020   London (Heathrow)                     924.2        314         150
 2020   New York City (Central Park)         1166.0        705         132
 ...
+
+Annual Temperature Discomfort (mean °C deviation per obs)
+Years 2020–2025 | baselines: 15.5°C, 18°C, 21°C
+
+Year   City                              Baseline   Cold dev   Warm dev  Total dev
+----------------------------------------------------------------------------------
+2020   London (Heathrow)      HDD base (15.5°C)       3.77       0.33       4.10
+2020   New York City (Central Park)  HDD base (15.5°C) 2.55       1.42       3.97
+...
 ```
 
 ## Methodology
@@ -149,6 +158,38 @@ cities with published climate-table conventions.
 
 A calendar day is **rainy** if it contains at least one rainy hour (i.e.
 at least one hour with liquid-equivalent depth > 0.254 mm).
+
+### Temperature discomfort
+
+Hourly air temperature is taken from the ISD `TMP` mandatory field:
+
+```
+TMP = +TTTT , Q
+```
+
+`TTTT` is temperature in **tenths of °C** (signed integer); `Q` is a quality
+flag.  Missing observations use the sentinel `+9999` and are excluded.
+
+For each observation and each baseline temperature *b*, two one-sided
+deviations are computed:
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| Cold deviation | max(*b* − *T*, 0) | How many °C below the baseline (heating pressure) |
+| Warm deviation | max(*T* − *b*, 0) | How many °C above the baseline (cooling pressure) |
+
+Both are averaged over the number of valid observations in that year to give
+a **mean °C deviation per observation**, making the London (FM-12, ~24 obs/day)
+and NYC (FM-15, ~12–24 obs/day) series directly comparable despite their
+different reporting frequencies.
+
+Three baselines are reported:
+
+| Baseline | °C | Standard |
+|----------|----|---------|
+| HDD base | 15.5 | WMO / UK Met Office heating degree-day base |
+| CDD base | 18.0 | Standard cooling degree-day base |
+| Comfort base | 21.0 | Commonly cited comfortable outdoor temperature |
 
 ## Validation against GHCND (NYC)
 

@@ -274,3 +274,123 @@ def process_precipitation_data(
 
     logger.info("Processed DataFrame: %d rows.", len(df))
     return df[[c for c in keep if c in df.columns]]
+
+
+def parse_tmp_celsius(series: pd.Series) -> pd.Series:
+    """Parse the ISD ``TMP`` field into °C (float), with NaN for missing values.
+
+    The ``TMP`` field has the form::
+
+        +TTTT,Q
+
+    where ``TTTT`` is air temperature in **tenths of °C** (signed integer) and
+    ``Q`` is a quality flag.  Missing observations use the sentinel ``+9999``.
+
+    Parameters
+    ----------
+    series:
+        Raw string values of the ``TMP`` column.
+
+    Returns
+    -------
+    pd.Series
+        Air temperature in **°C** (float), with NaN for missing values.
+    """
+
+    def _extract(val) -> float:
+        if pd.isna(val):
+            return float("nan")
+        parts = str(val).split(",")
+        temp_str = parts[0].strip()
+        if temp_str in cfg.TMP_MISSING:
+            return float("nan")
+        try:
+            return int(temp_str) / 10.0
+        except ValueError:
+            return float("nan")
+
+    return series.map(_extract)
+
+
+def process_temperature_data(
+    raw_df: pd.DataFrame,
+    report_types: list[str] | None = None,
+) -> pd.DataFrame:
+    """Clean raw ISD data and return a tidy temperature DataFrame.
+
+    Temperature is sourced from the ``TMP`` column (ISD mandatory field).
+    The result contains a ``temp_c`` column with values in °C.
+
+    Rows are filtered to :data:`HOURLY_REPORT_TYPES` and deduplicated to one
+    observation per timestamp (keeping the first), matching the same logic
+    used by :func:`process_precipitation_data`.
+
+    Parameters
+    ----------
+    raw_df:
+        Raw DataFrame as returned by :func:`download_and_concatenate_s3_csvs`.
+    report_types:
+        If non-empty, keep only rows whose ``REPORT_TYPE`` is in this list.
+        Defaults to :data:`HOURLY_REPORT_TYPES`.  Pass ``[]`` to disable
+        filtering.
+
+    Returns
+    -------
+    pd.DataFrame
+        Processed DataFrame indexed by ``DATE`` (UTC datetime), with at least
+        the ``temp_c`` column.
+    """
+    if report_types is None:
+        report_types = HOURLY_REPORT_TYPES
+
+    if raw_df.empty:
+        logger.warning("Input DataFrame is empty; cannot process temperature.")
+        return pd.DataFrame()
+
+    if "DATE" not in raw_df.columns:
+        logger.error("'DATE' column is missing; returning empty DataFrame.")
+        return pd.DataFrame()
+
+    df = raw_df.copy()
+
+    # --- Parse timestamp ---
+    df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce", utc=True)
+    df.dropna(subset=["DATE"], inplace=True)
+    df.set_index("DATE", inplace=True)
+
+    # --- Parse temperature ---
+    if cfg.TMP_COLUMN in df.columns:
+        df["temp_c"] = parse_tmp_celsius(df[cfg.TMP_COLUMN])
+    else:
+        logger.warning(
+            "'%s' column not found; 'temp_c' will be NaN.", cfg.TMP_COLUMN
+        )
+        df["temp_c"] = np.nan
+
+    # --- Filter by report type ---
+    if report_types and "REPORT_TYPE" in df.columns:
+        before = len(df)
+        df = df[df["REPORT_TYPE"].astype(str).isin(report_types)]
+        logger.info(
+            "Filtered by REPORT_TYPE %s: kept %d/%d rows.",
+            report_types,
+            len(df),
+            before,
+        )
+    elif report_types:
+        logger.warning(
+            "'REPORT_TYPE' column not found; skipping report-type filter."
+        )
+
+    # --- Deduplicate (keep first occurrence per timestamp) ---
+    df = df[~df.index.duplicated(keep="first")]
+    df.sort_index(inplace=True)
+
+    # --- Select output columns ---
+    keep = ["temp_c"]
+    for col in ("STATION", "NAME", "REPORT_TYPE", "SOURCE"):
+        if col in df.columns:
+            keep.insert(0, col)
+
+    logger.info("Processed temperature DataFrame: %d rows.", len(df))
+    return df[[c for c in keep if c in df.columns]]
