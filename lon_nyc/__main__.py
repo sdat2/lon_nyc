@@ -2,11 +2,16 @@
 
 Run with::
 
-    python -m lon_nyc [--start YEAR] [--end YEAR]
+    python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 
 or, if installed::
 
-    lon-nyc [--start YEAR] [--end YEAR]
+    lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
+
+Optional plot flags:
+
+* ``--plot FILE``      – rainfall threshold-sensitivity two-panel plot (PNG)
+* ``--temp-plot FILE`` – temperature histogram + mean-deviation two-panel plot (PNG)
 """
 
 from __future__ import annotations
@@ -74,6 +79,15 @@ def main(argv: list[str] | None = None) -> None:
             "(e.g. threshold_sensitivity.png).  If omitted, no plot is produced."
         ),
     )
+    parser.add_argument(
+        "--temp-plot",
+        metavar="FILE",
+        default=None,
+        help=(
+            "Generate a temperature histogram + deviation plot and save it to FILE "
+            "(e.g. temperature_panels.png). If omitted, no plot is produced."
+        ),
+    )
     args = parser.parse_args(argv)
 
     s3 = noaa.make_s3_client()
@@ -86,6 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     frames = []
     temp_frames = []
     precip_data: dict[str, pd.DataFrame] = {}
+    temp_data: dict[str, pd.DataFrame] = {}
     for station_id, label in stations:
         # Pass cache_dir="" to disable caching when --no-cache is set
         cache_dir = "" if args.no_cache else None
@@ -98,8 +113,10 @@ def main(argv: list[str] | None = None) -> None:
         frames.append(
             analysis.annual_summary(processed_precip, label=label)
         )
+        processed_temp = noaa.process_temperature_data(raw)
+        temp_data[label] = processed_temp
         temp_frames.append(
-            analysis.annual_temperature_summary(noaa.process_temperature_data(raw), label=label)
+            analysis.annual_temperature_summary(processed_temp, label=label)
         )
 
     combined = pd.concat(frames, ignore_index=True)
@@ -178,6 +195,18 @@ def main(argv: list[str] | None = None) -> None:
             end_year=args.end,
         )
         print(f"Threshold sensitivity plot saved to: {args.plot}")
+
+    # ── Temperature hist + deviation plot ───────────────────────────────────
+    if args.temp_plot:
+        print(f"\nComputing temperature plots … ", end="", flush=True)
+        temp_dfs = [(label, temp_data[label]) for label in temp_data]
+        print("done.")
+        plots.plot_temperature_hist_and_deviation(
+            temp_dfs,
+            output_path=args.temp_plot,
+            title_years=(args.start, args.end),
+        )
+        print(f"Temperature histogram & deviation plot saved to: {args.temp_plot}")
 
 
 if __name__ == "__main__":

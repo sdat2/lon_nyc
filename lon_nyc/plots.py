@@ -1,12 +1,23 @@
-"""Plotting helpers for lon_nyc analysis results."""
+"""Plotting helpers for lon_nyc analysis results.
+
+Two figures are currently supported:
+
+* :func:`plot_threshold_sensitivity` — two-panel rainfall threshold sweep
+  (rainy hours / rainy days vs threshold mm, log scale).
+* :func:`plot_temperature_hist_and_deviation` — side-by-side temperature
+  density histogram (a) and mean absolute deviation vs chosen temperature (b).
+
+London is always drawn in red (``tab:red``), NYC in blue (``tab:blue``).
+"""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from lon_nyc import config as cfg
@@ -115,5 +126,85 @@ def plot_threshold_sensitivity(
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(out), dpi=150)
         logger.info("Saved threshold sensitivity plot to %s", out)
+
+    return fig
+
+
+def plot_temperature_hist_and_deviation(
+    temp_pairs: list[tuple[str, pd.DataFrame]],
+    output_path: str | Path | None = None,
+    chosen_temps: Sequence[float] | None = None,
+    title_years: tuple[int, int] | None = None,
+) -> "Figure":  # type: ignore[name-defined]
+    """Create a side-by-side figure: (a) temperature histograms, (b) mean abs-deviation vs chosen temp.
+
+    Parameters
+    ----------
+    temp_pairs:
+        List of (label, DataFrame) pairs where each DataFrame must contain
+        a ``temp_c`` column of temperature observations (°C).
+    output_path:
+        If provided, save the figure to this path.
+    chosen_temps:
+        Sequence of chosen temperatures (°C) to evaluate mean absolute deviation.
+        Defaults to np.arange(-10, 41, 0.5).
+    title_years:
+        Optional (start, end) tuple used for a descriptive title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    if chosen_temps is None:
+        chosen_temps = list(np.arange(-10.0, 40.5, 0.5))
+
+    fig, (ax_hist, ax_dev) = plt.subplots(
+        1, 2, figsize=(12, 5), constrained_layout=True
+    )
+
+    # (a) Histograms — overlayed, alpha=0.5, no stacking
+    for label, df in temp_pairs:
+        colour = _CITY_COLOURS.get(label, "black")
+        temps = df["temp_c"].dropna()
+        if temps.empty:
+            logger.warning("No temperature data for %s — skipping histogram.", label)
+            continue
+        ax_hist.hist(temps, bins=40, alpha=0.5, color=colour, label=label, density=True)
+
+    ax_hist.set_xlabel("Temperature (°C)")
+    ax_hist.set_ylabel("Density")
+    ax_hist.legend(fontsize=9, framealpha=0.9)
+    ax_hist.spines[["top", "right"]].set_visible(False)
+    ax_hist.grid(True, linestyle=":", alpha=0.6)
+
+    # (b) Mean absolute deviation vs chosen temp
+    for label, df in temp_pairs:
+        colour = _CITY_COLOURS.get(label, "black")
+        temps = df["temp_c"].dropna().to_numpy()
+        if temps.size == 0:
+            logger.warning("No temperature data for %s — skipping deviation plot.", label)
+            continue
+        mean_devs = [float(np.abs(temps - ct).mean()) for ct in chosen_temps]
+        ax_dev.plot(chosen_temps, mean_devs, color=colour, linewidth=2, label=label)
+
+    ax_dev.set_xlabel("Chosen temperature (°C)")
+    ax_dev.set_ylabel("Mean absolute deviation (°C)")
+    ax_dev.legend(fontsize=9, framealpha=0.9)
+    ax_dev.spines[["top", "right"]].set_visible(False)
+    ax_dev.grid(True, linestyle=":", alpha=0.6)
+
+    # Title
+    year_range = ""
+    if title_years is not None and title_years[0] is not None:
+        start, end = title_years
+        year_range = f"  ({start}–{end})"
+
+    fig.suptitle(f"Temperature distributions and deviation{year_range}", fontsize=13, fontweight="bold")
+
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), dpi=150)
+        logger.info("Saved temperature panels to %s", out)
 
     return fig

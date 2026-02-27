@@ -35,6 +35,16 @@ HOURLY_PRECIP_MISSING: frozenset = frozenset(
 TMP_COLUMN: str = "TMP"
 TMP_MISSING: frozenset = frozenset({"+9999", "9999", "+99999"})
 
+# ISD TMP quality flags that indicate an observation is suspect, erroneous, or
+# missing and should be dropped rather than trusted.
+#   2 – Suspect (failed one or more quality control tests)
+#   3 – Erroneous (outside gross plausibility limits)
+#   6 – Suspect by element-consistency check
+#   7 – Erroneous by element-consistency check
+#   9 – Missing (no observation)
+# Codes 0, 1, 4, 5 are accepted (passed QC, gross-limits only, not checked, etc.)
+TMP_REJECTED_QUALITY_FLAGS: frozenset = frozenset({"2", "3", "6", "7", "9"})
+
 # Comfort baseline temperatures (°C) used for the "temperature discomfort"
 # metric.  Values are normalised by observation count so that stations with
 # different reporting densities (FM-12 vs FM-15) are directly comparable.

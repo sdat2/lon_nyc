@@ -51,7 +51,16 @@ S3_BUCKET: str = "noaa-global-hourly-pds"
 # FM-12 = SYNOP (WMO surface synoptic observation, used at many non-US stations
 # such as London Heathrow, where AA1 precipitation data is reported on FM-12
 # rows rather than FM-15 rows).
-HOURLY_REPORT_TYPES: list[str] = ["FM-15", "FM-12"]
+#
+# ORDER MATTERS for temperature deduplication: when both FM-12 and FM-15 rows
+# exist at the same timestamp, process_temperature_data keeps the type listed
+# FIRST.  FM-12 is listed first because Heathrow's FM-12 (SYNOP) rows carry
+# 0.1 °C temperature resolution, whereas its FM-15 (METAR) rows are stored at
+# whole-degree resolution in ISD — producing large artificial spikes in the
+# histogram at every integer °C.  NYC only files FM-15, so the ordering has no
+# effect there.  For precipitation the order is irrelevant because the two
+# report types are kept separately before deduplication by timestamp.
+HOURLY_REPORT_TYPES: list[str] = ["FM-12", "FM-15"]
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +318,7 @@ def process_precipitation_data(
 
 
 def parse_tmp_celsius(series: pd.Series) -> pd.Series:
-    """Parse the ISD ``TMP`` field into °C (float), with NaN for missing values.
+    """Parse the ISD ``TMP`` field into °C (float), with NaN for missing or bad values.
 
     The ``TMP`` field has the form::
 
@@ -317,6 +326,9 @@ def parse_tmp_celsius(series: pd.Series) -> pd.Series:
 
     where ``TTTT`` is air temperature in **tenths of °C** (signed integer) and
     ``Q`` is a quality flag.  Missing observations use the sentinel ``+9999``.
+    Observations whose quality flag indicates a suspect or erroneous reading
+    (codes 2, 3, 6, 7, 9 — see :data:`lon_nyc.config.TMP_REJECTED_QUALITY_FLAGS`)
+    are returned as NaN and excluded from all downstream analysis.
 
     Parameters
     ----------
@@ -326,7 +338,7 @@ def parse_tmp_celsius(series: pd.Series) -> pd.Series:
     Returns
     -------
     pd.Series
-        Air temperature in **°C** (float), with NaN for missing values.
+        Air temperature in **°C** (float), with NaN for missing or bad-quality values.
     """
 
     def _extract(val) -> float:
@@ -335,6 +347,9 @@ def parse_tmp_celsius(series: pd.Series) -> pd.Series:
         parts = str(val).split(",")
         temp_str = parts[0].strip()
         if temp_str in cfg.TMP_MISSING:
+            return float("nan")
+        # Reject observations flagged as suspect, erroneous, or missing
+        if len(parts) >= 2 and parts[1].strip() in cfg.TMP_REJECTED_QUALITY_FLAGS:
             return float("nan")
         try:
             return int(temp_str) / 10.0
@@ -353,9 +368,12 @@ def process_temperature_data(
     Temperature is sourced from the ``TMP`` column (ISD mandatory field).
     The result contains a ``temp_c`` column with values in °C.
 
-    Rows are filtered to :data:`HOURLY_REPORT_TYPES` and deduplicated to one
-    observation per timestamp (keeping the first), matching the same logic
-    used by :func:`process_precipitation_data`.
+    When multiple rows share the same timestamp, the row whose ``REPORT_TYPE``
+    appears **earliest** in *report_types* is kept.  The default order is
+    ``["FM-12", "FM-15"]``, which means FM-12 (SYNOP — 0.1 °C resolution at
+    Heathrow) is preferred over FM-15 (METAR — whole-degree resolution at
+    Heathrow) when both are present.  NYC Central Park only files FM-15 reports
+    so the ordering has no effect there.
 
     Parameters
     ----------
@@ -364,7 +382,8 @@ def process_temperature_data(
     report_types:
         If non-empty, keep only rows whose ``REPORT_TYPE`` is in this list.
         Defaults to :data:`HOURLY_REPORT_TYPES`.  Pass ``[]`` to disable
-        filtering.
+        filtering.  The list order determines deduplication priority — the
+        first matching type per timestamp is kept.
 
     Returns
     -------
@@ -414,7 +433,45 @@ def process_temperature_data(
             "'REPORT_TYPE' column not found; skipping report-type filter."
         )
 
-    # --- Deduplicate (keep first occurrence per timestamp) ---
+    # --- Drop lower-priority report types when higher-priority ones are present ---
+    # At stations like London Heathrow, FM-12 (SYNOP) and FM-15 (METAR) rows
+    # occupy *different* timestamps, so the deduplication step cannot choose
+    # between them.  Heathrow FM-15 records temperature at whole-degree
+    # resolution, producing artificial histogram spikes, while FM-12 rows have
+    # genuine 0.1 °C resolution.  If any FM-12 data is present in the dataset
+    # we therefore discard all FM-15 rows for temperature entirely, keeping
+    # FM-15 only at stations (like NYC) that file no FM-12 reports.
+    if report_types and "REPORT_TYPE" in df.columns and len(report_types) > 1:
+        rt_col = df["REPORT_TYPE"].astype(str)
+        for i, preferred in enumerate(report_types[:-1]):
+            if (rt_col == preferred).any():
+                # Higher-priority type is present — drop everything below it
+                drop_types = set(report_types[i + 1:])
+                before = len(df)
+                df = df[~rt_col.isin(drop_types)]
+                logger.info(
+                    "Station has '%s' data; dropped lower-priority types %s "
+                    "(%d → %d rows) to avoid mixed-resolution temperature bias.",
+                    preferred,
+                    drop_types,
+                    before,
+                    len(df),
+                )
+                break
+
+    # --- Sort by report-type priority before deduplication ---
+    # Assign a numeric priority based on position in report_types so that when
+    # two rows share a timestamp the preferred type is kept.  Lower rank = higher
+    # priority (kept first after sort).
+    if report_types and "REPORT_TYPE" in df.columns:
+        priority = {rt: i for i, rt in enumerate(report_types)}
+        df["_rt_priority"] = (
+            df["REPORT_TYPE"].astype(str).map(priority).fillna(len(report_types))
+        )
+        df.sort_values("_rt_priority", kind="stable", inplace=True)
+        df.drop(columns=["_rt_priority"], inplace=True)
+
+    # --- Deduplicate (keep first occurrence per timestamp, i.e. highest priority) ---
     df = df[~df.index.duplicated(keep="first")]
     df.sort_index(inplace=True)
 

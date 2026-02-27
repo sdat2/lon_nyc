@@ -89,24 +89,29 @@ pip install -e .
 ## Usage
 
 ```bash
-python -m lon_nyc [--start YEAR] [--end YEAR]
+python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 ```
 
 Or, if installed via `pip install -e .`:
 
 ```bash
-lon-nyc [--start YEAR] [--end YEAR]
+lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 ```
 
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--start` | `2020` | First year to fetch (inclusive) |
 | `--end`   | `2025` | Last year to fetch (inclusive) |
+| `--plot FILE` | *(none)* | Save a rainfall threshold-sensitivity plot to *FILE* (PNG) |
+| `--temp-plot FILE` | *(none)* | Save a temperature histogram + deviation plot to *FILE* (PNG) |
+| `--no-cache` | *(off)* | Disable on-disk CSV cache (re-downloads from S3) |
 
 ## Example
 
 ```bash
-python -m lon_nyc --start 2020 --end 2025
+python -m lon_nyc --start 2020 --end 2024 \
+    --plot threshold_sensitivity.png \
+    --temp-plot temperature_panels.png
 ```
 
 Sample output:
@@ -130,6 +135,39 @@ Year   City                              HDD (°C/obs)  CDD (°C/obs)  Comfort d
 2020   New York City (Central Park)              4.69          2.07         9.35       401
 ...
 ```
+
+## Plots
+
+### Rainfall threshold sensitivity (`--plot`)
+
+A two-panel figure with precipitation threshold (mm, log scale) as the shared
+x-axis.  The top panel shows **mean annual rainy hours** and the bottom panel
+shows **mean annual rainy days**, both averaged over all years in the requested
+range.  London is drawn in red, NYC in blue.  A dashed vertical line marks the
+standard WMO threshold (0.254 mm).
+
+This plot shows that the London/NYC rainy-hours gap is robust: NYC leads
+across the entire threshold range from 0.01 mm to 5 mm.  London briefly
+overtakes NYC on rainy *days* only at very low thresholds (< ~0.1 mm), where
+London's frequent sub-trace drizzle events inflate its day count — confirming
+that the reporting asymmetry described in the methodology section is real.
+
+### Temperature distributions (`--temp-plot`)
+
+A side-by-side two-panel figure:
+
+**(a) Temperature histogram** — overlaid density histograms (alpha = 0.5, no
+stacking) of all hourly temperature observations across the requested years.
+London's distribution is broadly Gaussian, centred around 10–11 °C.  NYC's
+distribution is flatter and wider, reflecting a more continental climate with
+hotter summers and colder winters.
+
+**(b) Mean absolute deviation vs chosen temperature** — for a sweep of
+reference temperatures from −10 °C to 40 °C, the plot shows the mean absolute
+deviation of hourly observations from that reference.  The minimum of each
+city's curve is the single temperature that minimises discomfort, analogous to
+an empirical "comfort temperature".  NYC's curve is wider and shifted to the
+right of London's, reflecting its greater seasonal temperature range.
 
 ## Methodology
 
@@ -168,10 +206,23 @@ asymmetry between the two cities.
 
 | Code | Name | Kept? | Reason |
 |------|------|-------|--------|
-| FM-15 | METAR (hourly) | ✅ | Primary NYC observation type |
+| FM-15 | METAR (hourly) | ✅ | Primary NYC observation type; also present at Heathrow but used only as a fallback (see note below) |
 | FM-12 | SYNOP (hourly) | ✅ | Primary London/Heathrow observation type |
 | FM-16 | SPECI (special METAR) | ❌ | Sub-hourly; variable AA1 period causes double-counting |
 | SOD/SOM | Daily/monthly summaries | ❌ | Not hourly |
+
+> **Heathrow FM-12 vs FM-15 for temperature.**  Heathrow files both FM-12
+> (SYNOP) and FM-15 (METAR) reports, but the ISD stores temperature in the
+> FM-15 rows at **whole-degree Celsius** resolution only (e.g. `+0100` = 10 °C
+> exactly), whereas FM-12 rows carry genuine **0.1 °C** resolution.  Using
+> FM-15 rows would produce large artificial spikes at every integer °C in the
+> temperature histogram.  The processor therefore uses FM-12 rows exclusively
+> for temperature whenever a station files any FM-12 reports, falling back to
+> FM-15 only for stations (like NYC) that have no FM-12 data at all.  This is
+> done automatically — no station-specific configuration is needed.
+> For **precipitation**, FM-12 rows are used for Heathrow because the `AA1`
+> accumulation field is only populated there on FM-12 rows; NYC's `AA1` data
+> is on FM-15 rows.  Both types are parsed and the results combined.
 
 ### Rainy-hour threshold
 
@@ -199,7 +250,16 @@ TMP = +TTTT , Q
 ```
 
 `TTTT` is temperature in **tenths of °C** (signed integer); `Q` is a quality
-flag.  Missing observations use the sentinel `+9999` and are excluded.
+flag.  Two categories of observation are excluded as `NaN`:
+
+* **Missing sentinel** — `+9999` / `9999`.
+* **Bad quality flags** — codes `2` (suspect), `3` (erroneous), `6` (suspect
+  by element-consistency check), `7` (erroneous by element-consistency check),
+  and `9` (missing).  Codes `0`, `1`, `4`, `5` are accepted.
+
+As noted in the report-type section above, Heathrow FM-12 rows are used
+exclusively for temperature (0.1 °C resolution); FM-15 rows are dropped for
+this station to avoid whole-degree histogram spikes.
 
 Three metrics are computed, each using its own conventional baseline, and all
 normalised by observation count to make the two stations comparable:

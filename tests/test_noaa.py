@@ -269,6 +269,30 @@ def test_parse_tmp_multiple_values():
     assert pd.isna(result.iloc[2])
 
 
+@pytest.mark.parametrize("bad_flag", ["2", "3", "6", "7", "9"])
+def test_parse_tmp_rejected_quality_flags(bad_flag):
+    """Quality flags 2, 3, 6, 7, 9 should all produce NaN."""
+    result = noaa.parse_tmp_celsius(_tmp_series(f"+0100,{bad_flag}"))
+    assert pd.isna(result.iloc[0]), f"Expected NaN for quality flag '{bad_flag}'"
+
+
+@pytest.mark.parametrize("good_flag", ["0", "1", "4", "5"])
+def test_parse_tmp_accepted_quality_flags(good_flag):
+    """Quality flags 0, 1, 4, 5 should be accepted and return the numeric value."""
+    result = noaa.parse_tmp_celsius(_tmp_series(f"+0100,{good_flag}"))
+    assert pytest.approx(result.iloc[0]) == 10.0, (
+        f"Expected 10.0 for quality flag '{good_flag}'"
+    )
+
+
+def test_parse_tmp_spike_at_10c_with_bad_flag_is_nan():
+    """The 10 °C spike in Heathrow data comes from quality-flagged observations;
+    ensure that +0100 with a bad quality flag is dropped."""
+    # Erroneous observation at exactly 10.0 °C (100 tenths) with flag 3
+    result = noaa.parse_tmp_celsius(_tmp_series("+0100,3"))
+    assert pd.isna(result.iloc[0])
+
+
 # ---------------------------------------------------------------------------
 # process_temperature_data
 # ---------------------------------------------------------------------------
@@ -330,3 +354,32 @@ def test_process_temperature_missing_date_returns_empty():
     raw = pd.DataFrame({"TMP": ["+0100,1"]})
     df = noaa.process_temperature_data(raw)
     assert df.empty
+
+
+def test_process_temperature_prefers_fm12_over_fm15_at_same_timestamp():
+    """When FM-12 data is present in the dataset, all FM-15 rows are dropped
+    to avoid the whole-degree resolution bias seen at Heathrow."""
+    raw = pd.DataFrame({
+        "DATE": ["2023-06-01T12:00:00", "2023-06-01T13:00:00"],
+        # FM-15 has whole-degree value (100 tenths = 10.0 °C)
+        # FM-12 has finer value (105 tenths = 10.5 °C) at a different timestamp
+        "TMP": ["+0100,1", "+0105,1"],
+        "REPORT_TYPE": ["FM-15", "FM-12"],
+    })
+    df = noaa.process_temperature_data(raw, report_types=["FM-12", "FM-15"])
+    # FM-15 row should be dropped entirely; only the FM-12 row remains
+    assert len(df) == 1
+    assert pytest.approx(df["temp_c"].iloc[0]) == 10.5
+
+
+def test_process_temperature_fm12_priority_does_not_affect_nyc():
+    """When only FM-15 rows exist (NYC-like), all rows are kept unchanged."""
+    raw = pd.DataFrame({
+        "DATE": ["2023-06-01T12:00:00", "2023-06-01T13:00:00"],
+        "TMP": ["+0228,5", "+0233,5"],
+        "REPORT_TYPE": ["FM-15", "FM-15"],
+    })
+    df = noaa.process_temperature_data(raw, report_types=["FM-12", "FM-15"])
+    assert len(df) == 2
+    assert pytest.approx(df["temp_c"].iloc[0]) == 22.8
+    assert pytest.approx(df["temp_c"].iloc[1]) == 23.3
