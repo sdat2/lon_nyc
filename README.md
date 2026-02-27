@@ -421,13 +421,9 @@ June solstice) while its winter days are very short (≈ 7.6 h near the December
 solstice).  NYC is more moderate in both directions (≈ 14.9 h in June,
 ≈ 9.1 h in December).
 
-The key question is: **how much of that daylight is actually usable?**
-Early-morning light before you wake up and late-evening light after bedtime is
-largely wasted for most people's daily routines.  London's extra summer hours
-mostly occur in the early morning (sunrise before 04:00 in June), which are
-not accessible unless you adjust your sleep schedule significantly.  At the
-same time, London's short winter days fall almost entirely within a working day
-— but there are far fewer of them.
+The key question is: **how much of that daylight is actually usable**, given
+that early-morning light before you wake up and late-evening light after
+bedtime is largely wasted?
 
 ### Method
 
@@ -443,66 +439,47 @@ day_length = 2ω₀ / 15   (hours)
 where *doy* is day-of-year and *φ* is latitude.  Sunrise and sunset are
 expressed in local solar time, which is a good proxy for clock time at these
 longitudes (London ≈ 0°W, NYC ≈ 74°W with UTC−5 standard time).  Daylight
-Saving Time is not applied; DST shifts both cities' clocks equally and does
-not affect the comparison.
+Saving Time is not applied; DST shifts both cities' clocks equally.
 
-**Usable daylight** is defined as the overlap of [sunrise, sunset] with the
-assumed waking window **07:00–23:00** (16 waking hours):
+**Usable daylight** is the overlap of [sunrise, sunset] with the waking
+window, averaged over all 365 days of the year.
 
-```
-usable = max(0,  min(sunset, 23:00) − max(sunrise, 07:00))
-```
+### Effect of sleep schedule
 
-### Monthly results
+Rather than fix a single waking window, `scripts/sleep_schedule_daylight.py`
+sweeps the **wake-up time** across the full 24-hour clock in 15-minute steps,
+assuming a fixed **8-hour sleep window** (so 16 waking hours).  For each
+wake-up time, usable daylight is the overlap of the 16-hour waking window with
+[sunrise, sunset], averaged over all 365 days.
 
-| Month | LHR day (h) | LHR sunrise | LHR sunset | LHR usable (h) | LHR% waking | NYC day (h) | NYC sunrise | NYC sunset | NYC usable (h) | NYC% waking |
-|-------|------------:|------------:|-----------:|---------------:|------------:|------------:|------------:|-----------:|---------------:|------------:|
-| Jan   |         8.2 |       07:55 |      16:05 |            8.2 |       51.0% |         9.4 |       07:17 |      16:43 |            9.4 |       59.0% |
-| Feb   |         9.7 |       07:09 |      16:51 |            9.6 |       60.3% |        10.4 |       06:47 |      17:13 |           10.2 |       63.8% |
-| Mar   |        11.6 |       06:11 |      17:49 |           10.8 |       67.6% |        11.8 |       06:07 |      17:53 |           10.9 |       68.0% |
-| Apr   |        13.7 |       05:10 |      18:50 |           11.8 |       74.0% |        13.1 |       05:26 |      18:34 |           11.6 |       72.3% |
-| May   |        15.4 |       04:17 |      19:43 |           12.7 |       79.5% |        14.3 |       04:51 |      19:09 |           12.2 |       75.9% |
-| Jun   |        16.3 |       03:50 |      20:10 |           13.2 |       82.3% |        14.9 |       04:34 |      19:26 |           12.4 |       77.7% |
-| Jul   |        15.9 |       04:04 |      19:56 |           12.9 |       80.8% |        14.6 |       04:43 |      19:17 |           12.3 |       76.8% |
-| Aug   |        14.3 |       04:52 |      19:08 |           12.1 |       75.9% |        13.5 |       05:14 |      18:46 |           11.8 |       73.6% |
-| Sep   |        12.3 |       05:51 |      18:09 |           11.1 |       69.6% |        12.2 |       05:54 |      18:06 |           11.1 |       69.4% |
-| Oct   |        10.3 |       06:52 |      17:08 |           10.1 |       62.9% |        10.8 |       06:35 |      17:25 |           10.4 |       65.1% |
-| Nov   |         8.5 |       07:44 |      16:16 |            8.5 |       53.3% |         9.7 |       07:10 |      16:50 |            9.7 |       60.4% |
-| Dec   |         7.7 |       08:10 |      15:50 |            7.7 |       47.9% |         9.1 |       07:26 |      16:34 |            9.1 |       57.0% |
-| **Annual** | **12.0** | | | **10.7** | **67.2%** | **12.0** | | | **10.9** | **68.3%** |
+**London (red) vs NYC (blue) — annual-mean usable daylight by wake-up time:**
 
-*Sunrise/sunset are monthly means of daily solar times.  Waking window: 07:00–23:00.*
+![Sleep schedule daylight plot](plots/sleep_schedule_daylight.png)
 
 ### Key findings
 
-1. **London's daylight is 1.5× more seasonal.**  The standard deviation of
-   daily day length is 3.0 h/day in London vs 2.0 h/day in NYC, so London's
-   extra summer hours come at the cost of very short winter days.
+1. **For typical sleep schedules (wake 06:00–12:00), the difference is
+   negligible.** NYC leads by at most ~0.2 h/day — barely 12 minutes.
+   Waking anywhere between 08:00 and noon gives almost identical usable
+   daylight in both cities.
 
-2. **London's summer bonus is mostly unusable.**  In June, London's sunrise
-   at ≈ 03:50 means roughly 3 hours of daylight occur before 07:00, clipped
-   by the waking window.  Even though London has a 1.4-hour longer June day
-   than NYC, its usable daylight lead shrinks to only 0.7 h (13.2 h vs 12.4 h).
+2. **Early risers get slightly more in NYC.**  London's extreme winter
+   shortfall (December days of only 7.7 h) is not compensated by its long
+   summer mornings, which mostly fall before any reasonable wake time.
+   NYC's more moderate year-round day length gives it a small consistent edge
+   for normal schedules.
 
-3. **NYC wins in winter.**  London's December usable daylight is just 7.7 h
-   (47.9% of waking hours) versus NYC's 9.1 h (57.0%).  The gap is
-   **+1.5 h/day** in NYC's favour — the largest monthly difference of the year.
+3. **Night owls get more daylight in London.**  For wake times of roughly
+   **12:00–20:00** (sleeping through the morning), London's very long summer
+   evenings pay off.  The London advantage peaks at **+0.22 h/day when waking
+   at 14:00** — the only scenario where London's latitude is genuinely
+   beneficial for usable daylight.
 
-4. **Annually, NYC has more usable daylight.**  Averaged over the full year,
-   NYC delivers **10.93 h/day** of usable daylight (68.3% of waking hours)
-   vs London's **10.74 h/day** (67.2%).  That is an advantage of
-   **+0.18 h/day ≈ +66 h/year** in NYC's favour.
+4. **London's daylight is 1.5× more seasonal.**  The standard deviation of
+   daily day length is 3.0 h/day in London vs 2.0 h/day in NYC.  London's
+   extreme seasonality amplifies both directions, but the waking-window clips
+   only the top (early-morning summer hours), not the bottom (short winter
+   days) — producing a net annual deficit for most schedules.
 
-5. **The mechanism is asymmetric clipping.**  London's latitude amplifies day
-   length in both directions, but the waking-window cap clips only the top
-   (early-morning summer hours); it does not clip the bottom (short winter
-   days).  This asymmetry means that London's extreme seasonality translates
-   into a net annual *deficit* of usable daylight despite its famous long
-   summer evenings.
-
-The intuition in the problem statement is therefore confirmed: **a greater
-proportion of waking life in NYC is spent in daylight** compared with London,
-purely because of the latitude difference and regardless of cloud cover.
-
-Script: `scripts/daylight_latitude.py` (no external data required — purely
-astronomical).
+Scripts: `scripts/daylight_latitude.py` and `scripts/sleep_schedule_daylight.py`
+(no external data required — purely astronomical).
