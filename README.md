@@ -356,9 +356,14 @@ SYNOP messages, not systematic instrument readings.
 
 **Conclusion:** No observed sunshine-duration series for NYC is available for
 2020–2024 in any public network.  US ASOS/AWOS stations do not deploy
-sunshine-duration recorders, the radiation monitoring networks (SURFRAD,
-SolRad-Net, USCRN) have no NYC-area site, and the AERONET instruments at CCNY
-and GISS measure aerosol optical depth rather than irradiance.  Historical NOAA
-normals show ≈ 2 535 sunshine hours/yr for the 1961–1990 period, but the
-underlying instrument record has not been continued.  Implementation is deferred
-until an equivalent NYC observed-sunshine source is identified.
+sunshine-duration recorders, and the radiation monitoring networks (SURFRAD,
+SolRad-Net, USCRN) have no NYC-area site.  The AERONET instruments at CCNY and
+GISS are in principle a sunshine proxy (they only observe when the sun is
+unobscured) but are not usable in practice: the Level 1.5 cloud-screened
+dataset removes cloudy observations, making gaps indistinguishable from
+instrument downtime (a 6-day outage was confirmed in June 2023), and the solar
+zenith angle cutoff (≈ 78°) causes systematic undercounting of 2–3 hours of
+daylight near sunrise and sunset.  Historical NOAA normals show ≈ 2 535
+sunshine hours/yr for Central Park in the 1961–1990 period, but the underlying
+instrument record has not been continued.  Implementation is deferred until an
+equivalent NYC observed-sunshine source is identified.
