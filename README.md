@@ -367,3 +367,45 @@ daylight near sunrise and sunset.  Historical NOAA normals show ≈ 2 535
 sunshine hours/yr for Central Park in the 1961–1990 period, but the underlying
 instrument record has not been continued.  Implementation is deferred until an
 equivalent NYC observed-sunshine source is identified.
+
+### Wikipedia climate-normal comparison
+
+Even though a contemporary observed series for NYC is unavailable, the
+Wikipedia long-term normals allow a static city-to-city comparison.  The
+Heathrow 2015–2024 observed mean (derived from ISD `55SSS` groups, see
+`scripts/heathrow_sunshine.py`) can be compared against both its own
+1991–2020 Met Office normal and the NOAA 1961–1990 Central Park normal.
+
+| Month | LHR obs 2015–24 (h) | LHR wiki 1991–2020 (h) | NYC wiki 1961–90 (h) | NYC − LHR (h) |
+|-------|--------------------:|-----------------------:|---------------------:|--------------:|
+| Jan   |  72.0 | 57.5  | 162.7 | +105.2 |
+| Feb   |  82.5 | 77.8  | 163.1 |  +85.3 |
+| Mar   | 112.0 | 111.5 | 212.5 | +100.5 |
+| Apr   | 158.3 | 157.3 | 225.6 |  +67.3 |
+| May   | 180.8 | 192.0 | 256.6 |  +75.8 |
+| Jun   | 187.4 | 196.4 | 257.3 |  +69.9 |
+| Jul   | 185.3 | 203.3 | 268.2 |  +82.9 |
+| Aug   | 162.9 | 196.8 | 268.2 | +105.3 |
+| Sep   | 130.4 | 144.7 | 219.3 |  +88.9 |
+| Oct   |  99.7 | 100.9 | 211.2 | +111.5 |
+| Nov   |  71.5 |  62.8 | 151.0 |  +79.5 |
+| Dec   |  57.4 |  44.6 | 139.0 |  +81.6 |
+| **Annual** | **1 500** | **1 546** | **2 535** | **+989** |
+
+Sources: NYC — NOAA 1961–1990 normals via
+[Wikipedia](https://en.wikipedia.org/wiki/Climate_of_New_York_City).
+LHR wiki — Met Office 1991–2020 normals via
+[Wikipedia](https://en.wikipedia.org/wiki/London_Heathrow_Airport#Climate).
+LHR obs — computed from NOAA ISD `55SSS` groups (this project,
+`scripts/heathrow_sunshine.py`).
+
+**Key finding:** NYC receives roughly **+990 hours more sunshine per year**
+than London Heathrow — about **64 % more** (2 535 h vs 1 546 h).  The gap is
+largest in autumn and winter (Oct +112 h, Jan +105 h, Aug +105 h) and
+smallest in late spring/early summer (Apr +67 h, Jun +70 h), when London's
+long days partially compensate for its cloudier skies.  The Heathrow
+2015–2024 observed mean (1 500 h) is close to the 1991–2020 normal (1 546 h),
+giving confidence that the ISD-derived series is well-calibrated.
+
+Note: the baseline periods differ (1961–1990 for NYC, 1991–2020 for LHR), so
+the comparison is indicative rather than strictly contemporaneous.
