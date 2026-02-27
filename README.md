@@ -42,7 +42,7 @@ All metrics are normalised by observation count so that the two stations'
 different reporting densities (London ≈ 24 obs/day on FM-12, NYC ≈ 12–18 on
 FM-15) do not distort the comparison.
 
-| Year | City | HDD (°C/obs) | CDD (°C/obs) | Comfort dev (°C/obs) | <0 °C hours |
+| Year | City | HDD (°C/obs) | CDD (°C/obs) | Comfort dev (°C) | <0 °C hours |
 |------|------|-------------:|-------------:|---------------------:|------------:|
 | 2020 | London (Heathrow) | 4.50 | 0.68 | 9.33 | 104 |
 | 2020 | New York City (Central Park) | 4.69 | **2.07** | 9.35 | **401** |

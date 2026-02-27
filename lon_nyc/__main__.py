@@ -17,7 +17,7 @@ import sys
 
 import pandas as pd
 
-from lon_nyc import analysis, config, noaa
+from lon_nyc import analysis, config, noaa, plots
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +65,15 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--no-cache", action="store_true", help="Disable on-disk CSV cache"
     )
+    parser.add_argument(
+        "--plot",
+        metavar="FILE",
+        default=None,
+        help=(
+            "Generate a threshold-sensitivity plot and save it to FILE "
+            "(e.g. threshold_sensitivity.png).  If omitted, no plot is produced."
+        ),
+    )
     args = parser.parse_args(argv)
 
     s3 = noaa.make_s3_client()
@@ -76,6 +85,7 @@ def main(argv: list[str] | None = None) -> None:
 
     frames = []
     temp_frames = []
+    precip_data: dict[str, pd.DataFrame] = {}
     for station_id, label in stations:
         # Pass cache_dir="" to disable caching when --no-cache is set
         cache_dir = "" if args.no_cache else None
@@ -83,8 +93,10 @@ def main(argv: list[str] | None = None) -> None:
         raw = noaa.download_and_concatenate_s3_csvs(
             s3, noaa.S3_BUCKET, keys, cache_dir=cache_dir
         )
+        processed_precip = noaa.process_precipitation_data(raw)
+        precip_data[label] = processed_precip
         frames.append(
-            analysis.annual_summary(noaa.process_precipitation_data(raw), label=label)
+            analysis.annual_summary(processed_precip, label=label)
         )
         temp_frames.append(
             analysis.annual_temperature_summary(noaa.process_temperature_data(raw), label=label)
@@ -150,6 +162,22 @@ def main(argv: list[str] | None = None) -> None:
             f"{row['mean_comfort_dev_c']:>12.2f} "
             f"{int(row['sub_zero_hours']):>9}"
         )
+
+    # ── Threshold sensitivity plot ────────────────────────────────────────────
+    if args.plot:
+        print(f"\nComputing threshold sensitivity sweep … ", end="", flush=True)
+        sens_frames = [
+            analysis.threshold_sensitivity(precip_data[label], label=label)
+            for label in precip_data
+        ]
+        print("done.")
+        plots.plot_threshold_sensitivity(
+            sens_frames,
+            output_path=args.plot,
+            start_year=args.start,
+            end_year=args.end,
+        )
+        print(f"Threshold sensitivity plot saved to: {args.plot}")
 
 
 if __name__ == "__main__":

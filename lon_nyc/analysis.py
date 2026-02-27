@@ -7,7 +7,9 @@ precipitation statistics from processed NOAA ISD data.
 from __future__ import annotations
 
 import logging
+from typing import Sequence
 
+import numpy as np
 import pandas as pd
 
 from lon_nyc import config as cfg
@@ -258,3 +260,74 @@ def annual_temperature_summary(
     logger.info("Temperature summary for '%s': %d years.", label, len(result))
     return result
 
+
+def threshold_sensitivity(
+    processed_df: pd.DataFrame,
+    thresholds_mm: Sequence[float] | None = None,
+    label: str = "",
+) -> pd.DataFrame:
+    """Compute mean annual rainy-hours and rainy-days across a range of thresholds.
+
+    For each threshold value the function calls :func:`annual_summary`, then
+    averages the per-year ``rainy_hours`` and ``rainy_days`` across all years
+    present in *processed_df*.  This lets you see how sensitive the headline
+    counts are to the choice of measurement threshold.
+
+    Parameters
+    ----------
+    processed_df:
+        Tidy DataFrame as returned by
+        :func:`lon_nyc.noaa.process_precipitation_data`.  Must be indexed by a
+        UTC-aware :class:`pandas.DatetimeIndex` and have a
+        ``precipitation_mm`` column.
+    thresholds_mm:
+        Sequence of threshold values (mm) to sweep.  Defaults to 50 values
+        log-spaced from 0.01 mm to 5 mm plus 0.0 mm.
+    label:
+        Station/city label added as a column to the result.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per threshold with columns:
+
+        * ``label``              – station label
+        * ``threshold_mm``       – the threshold tested
+        * ``mean_rainy_hours``   – mean annual rainy hours across years
+        * ``mean_rainy_days``    – mean annual rainy days across years
+    """
+    effective_thresholds: Sequence[float]
+    if thresholds_mm is None:
+        effective_thresholds = list(
+            np.concatenate([[0.0], np.logspace(np.log10(0.01), np.log10(5.0), 50)])
+        )
+    else:
+        effective_thresholds = thresholds_mm
+
+    records = []
+    for thr in effective_thresholds:
+        summary = annual_summary(processed_df, threshold_mm=float(thr), label=label)
+        if summary.empty:
+            records.append(
+                {
+                    "label": label,
+                    "threshold_mm": float(thr),
+                    "mean_rainy_hours": float("nan"),
+                    "mean_rainy_days": float("nan"),
+                }
+            )
+        else:
+            records.append(
+                {
+                    "label": label,
+                    "threshold_mm": float(thr),
+                    "mean_rainy_hours": float(summary["rainy_hours"].mean()),
+                    "mean_rainy_days": float(summary["rainy_days"].mean()),
+                }
+            )
+
+    result = pd.DataFrame(records).sort_values("threshold_mm").reset_index(drop=True)
+    logger.info(
+        "Threshold sensitivity for '%s': %d thresholds swept.", label, len(result)
+    )
+    return result

@@ -288,3 +288,66 @@ def test_temp_summary_sub_zero_hours():
     ])
     result = analysis.annual_temperature_summary(df)
     assert result.iloc[0]["sub_zero_hours"] == 2
+
+
+# ---------------------------------------------------------------------------
+# threshold_sensitivity
+# ---------------------------------------------------------------------------
+
+
+def _make_multi_year_precip_df() -> pd.DataFrame:
+    """Two years of synthetic precipitation data for sensitivity testing."""
+    idx_2022 = pd.date_range("2022-01-01", periods=10, freq="h", tz="UTC")
+    idx_2023 = pd.date_range("2023-01-01", periods=10, freq="h", tz="UTC")
+    values = [0.0, 0.1, 0.254, 0.3, 1.0, 2.0, 0.0, 0.5, 0.0, 3.0]
+    df = pd.DataFrame(
+        {"precipitation_mm": values * 2},
+        index=idx_2022.append(idx_2023),
+    )
+    return df
+
+
+def test_threshold_sensitivity_returns_dataframe():
+    df = _make_multi_year_precip_df()
+    result = analysis.threshold_sensitivity(df, thresholds_mm=[0.0, 0.254, 1.0], label="Test")
+    assert isinstance(result, pd.DataFrame)
+    assert list(result.columns) == [
+        "label", "threshold_mm", "mean_rainy_hours", "mean_rainy_days"
+    ]
+
+
+def test_threshold_sensitivity_row_count():
+    df = _make_multi_year_precip_df()
+    thresholds = [0.0, 0.1, 0.5, 1.0, 2.0]
+    result = analysis.threshold_sensitivity(df, thresholds_mm=thresholds)
+    assert len(result) == len(thresholds)
+
+
+def test_threshold_sensitivity_monotone_decreasing():
+    """Higher thresholds should yield fewer or equal rainy hours."""
+    df = _make_multi_year_precip_df()
+    thresholds = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
+    result = analysis.threshold_sensitivity(df, thresholds_mm=thresholds)
+    hours = result.sort_values("threshold_mm")["mean_rainy_hours"].tolist()
+    for a, b in zip(hours, hours[1:]):
+        assert a >= b, f"mean_rainy_hours not monotonically decreasing: {hours}"
+
+
+def test_threshold_sensitivity_label_propagated():
+    df = _make_multi_year_precip_df()
+    result = analysis.threshold_sensitivity(df, thresholds_mm=[0.254], label="London")
+    assert result.iloc[0]["label"] == "London"
+
+
+def test_threshold_sensitivity_empty_df():
+    result = analysis.threshold_sensitivity(pd.DataFrame(), thresholds_mm=[0.254])
+    assert len(result) == 1
+    assert math.isnan(result.iloc[0]["mean_rainy_hours"])
+
+
+def test_threshold_sensitivity_default_thresholds():
+    """Default sweep should produce > 1 threshold rows."""
+    df = _make_multi_year_precip_df()
+    result = analysis.threshold_sensitivity(df)
+    assert len(result) > 1
+
