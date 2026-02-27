@@ -175,3 +175,31 @@ encodes a small positive depth for the same events.
 pip install -e ".[dev]"
 pytest
 ```
+
+## Planned: sunshine hours comparison
+
+The natural follow-up question is whether London has more sunshine than NYC —
+the other half of the "miserable London weather" stereotype.
+
+### London
+Real observed hourly sunshine data (Campbell-Stokes recorder) is available
+from the **Met Office MIDAS Open** dataset via
+[CEDA](https://dap.ceda.ac.uk/badc/ukmo-midas-open/data/uk-hourly-weather-obs/):
+- Station: Heathrow (`src_id` 708), field `sun_dur_mins`
+- Authentication: free CEDA account → bearer token via
+  `POST https://services.ceda.ac.uk/api/token/create/`
+
+### NYC
+No equivalent observed sunshine record exists in any public US network:
+
+| Source | Outcome |
+|--------|---------|
+| GHCND `TSUN` — Central Park, JFK, LaGuardia | 0 / 365 days populated |
+| NOAA LCD `HourlySkyConditions` | Cloud-layer codes only; no duration |
+| ISD GF1 sky-cover oktas | Invalid proxy — counts night-time clear sky |
+| ISD REM `55SSS` SYNOP groups | Sparse (≈219 obs/yr) and unreliable |
+| Open-Meteo ERA5 reanalysis | Modelled, not observed; inflates ~60 % vs Met Office actuals |
+
+US ASOS/AWOS stations do not deploy sunshine-duration recorders, so no
+like-for-like observed comparison is currently possible. Implementation is
+deferred until an equivalent NYC source is identified.
