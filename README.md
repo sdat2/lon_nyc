@@ -7,27 +7,37 @@ compares hourly precipitation and temperature records for both cities using the
 hosted on the public AWS S3 bucket `noaa-global-hourly-pds`.
 
 **The answer is unambiguous: NYC is substantially wetter and more climatically
-extreme than London.**  Across 2020–2024, NYC received **60–70 % more rainfall
-by volume** (avg ~1320 mm/yr vs ~805 mm/yr) and logged roughly **690 rainy
-hours/year versus ~390 for London**, at every precipitation threshold from 0.01
+extreme than London.**  Across 2015–2024, NYC received **~55 % more rainfall
+by volume** (avg ~1290 mm/yr vs ~840 mm/yr) and logged roughly **690 rainy
+hours/year versus ~335 for London**, at every precipitation threshold from 0.01
 to 5 mm.  On temperature the cities have a similar heating burden (HDD
 ~4–5 °C/obs each), but NYC's summers are far hotter — cooling degree-days run
 **3–4× higher** every single year — and its winters are genuinely cold, with
-**400–900 sub-freezing hours/year versus London's 100–500**.  London's
+**400–1100 sub-freezing hours/year versus London's 75–200**.  London's
 "drizzly" reputation is a perception artefact driven by frequent sub-trace
 overcast events that do not register as measurable precipitation.
 
-## Results (2020–2024)
+## Results (2015–2024)
 
 > **NYC leads on every dimension.** More total rainfall, more rainy hours, and
-> comparable or greater numbers of rainy days across all five years — robust to
+> comparable or greater numbers of rainy days across all ten years — robust to
 > any choice of measurement threshold.
 
-Annual totals for 2020–2024 (2025 excluded as a partial year):
+Annual totals for 2015–2024 (2025 excluded as a partial year):
 
 | Year | City | Total (mm) | Rainy hours | Rainy days |
 |------|------|----------:|------------:|-----------:|
-| 2020 | London (Heathrow) | 924 | 314 | 150 |
+| 2015 | London (Heathrow) | 820 | 278 | 136 |
+| 2015 | New York City (Central Park) | **1049** | **599** | **114** |
+| 2016 | London (Heathrow) | 856 | 273 | 128 |
+| 2016 | New York City (Central Park) | **1071** | **556** | **117** |
+| 2017 | London (Heathrow) | 846 | 268 | 132 |
+| 2017 | New York City (Central Park) | **1158** | **639** | **130** |
+| 2018 | London (Heathrow) | 868 | 270 | 124 |
+| 2018 | New York City (Central Park) | **1658** | **896** | **152** |
+| 2019 | London (Heathrow) | 945 | 313 | 143 |
+| 2019 | New York City (Central Park) | **1392** | **796** | **153** |
+| 2020 | London (Heathrow) | 924 | 314 | **150** |
 | 2020 | New York City (Central Park) | **1166** | **705** | 132 |
 | 2021 | London (Heathrow) | 998 | 288 | 136 |
 | 2021 | New York City (Central Park) | **1527** | **666** | **138** |
@@ -53,7 +63,7 @@ below ~0.1 mm, where its sub-trace drizzle events inflate the count.
 
 ![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
 
-## Temperature (2020–2024)
+## Temperature (2015–2024)
 
 Temperature is taken from the ISD `TMP` field (see [Methodology](#methodology)).
 All metrics are normalised by observation count so that the two stations'
@@ -62,16 +72,26 @@ FM-15) do not distort the comparison.
 
 | Year | City | HDD (°C/obs) | CDD (°C/obs) | Comfort dev (°C) | <0 °C hours |
 |------|------|-------------:|-------------:|---------------------:|------------:|
-| 2020 | London (Heathrow) | 4.50 | 0.68 | 9.33 | 104 |
+| 2015 | London (Heathrow) | 4.42 | 0.34 | 9.35 | 85 |
+| 2015 | New York City (Central Park) | **5.43** | **2.44** | **10.15** | **1085** |
+| 2016 | London (Heathrow) | 4.90 | 0.54 | 9.70 | 128 |
+| 2016 | New York City (Central Park) | **5.01** | **2.32** | **9.77** | **638** |
+| 2017 | London (Heathrow) | 4.59 | 0.52 | 9.42 | 170 |
+| 2017 | New York City (Central Park) | **5.16** | **2.04** | **9.69** | **761** |
+| 2018 | London (Heathrow) | 4.80 | 0.90 | 9.55 | 183 |
+| 2018 | New York City (Central Park) | **5.63** | **2.24** | **10.30** | **676** |
+| 2019 | London (Heathrow) | 4.72 | 0.62 | 9.54 | 82 |
+| 2019 | New York City (Central Park) | **5.48** | **2.03** | **10.09** | **764** |
+| 2020 | London (Heathrow) | 4.50 | 0.71 | 9.33 | 54 |
 | 2020 | New York City (Central Park) | 4.69 | **2.07** | 9.35 | **401** |
-| 2021 | London (Heathrow) | **4.99** | 0.44 | **9.84** | 434 |
+| 2021 | London (Heathrow) | **5.02** | 0.47 | **9.89** | 175 |
 | 2021 | New York City (Central Park) | 4.93 | **2.13** | 9.47 | **584** |
-| 2022 | London (Heathrow) | 4.32 | 0.79 | 9.07 | 501 |
+| 2022 | London (Heathrow) | 4.33 | 0.80 | 9.09 | 199 |
 | 2022 | New York City (Central Park) | **5.29** | **2.18** | **9.98** | **879** |
-| 2023 | London (Heathrow) | **4.44** | 0.60 | **9.18** | **462** |
-| 2023 | New York City (Central Park) | 4.23 | **1.96** | 8.79 | 179 |
-| 2024 | London (Heathrow) | 4.17 | 0.48 | 8.97 | 199 |
-| 2024 | New York City (Central Park) | **4.57** | **2.15** | **9.10** | **486** |
+| 2023 | London (Heathrow) | **4.46** | 0.60 | **9.20** | **181** |
+| 2023 | New York City (Central Park) | 4.23 | **1.96** | 8.78 | 179 |
+| 2024 | London (Heathrow) | 4.07 | 0.51 | 8.85 | 74 |
+| 2024 | New York City (Central Park) | **4.57** | **2.15** | **9.10** | **484** |
 
 * **HDD** = mean °C below 15.5 °C per observation (heating pressure).
   Both cities are roughly equal — London is slightly colder most years but the
@@ -80,7 +100,7 @@ FM-15) do not distort the comparison.
   NYC runs **3–4× higher** than London every single year.  NYC summers are
   genuinely hot; London rarely sustains temperatures above 18 °C for long.
 * **< 0 °C hours** makes NYC's cold winters visible.  NYC regularly freezes for
-  400–900 hours a year; London typically logs 100–500.  The HDD metric alone
+  400–1100 hours a year; London typically logs 75–200.  The HDD metric alone
   understated this because NYC's hot summers partially cancel its winter cold
   when averaged over the full year.
 
@@ -135,7 +155,7 @@ lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 ## Example
 
 ```bash
-python -m lon_nyc --start 2020 --end 2024 \
+python -m lon_nyc --start 2015 --end 2024 \
     --plot plots/threshold_sensitivity.png \
     --temp-plot plots/temperature_panels.png
 ```
@@ -144,21 +164,21 @@ Sample output:
 
 ```
 ======================Annual Precipitation Summary======================
-Years 2020–2024 | threshold: >0.254 mm
+Years 2015–2024 | threshold: >0.254 mm
 
 Year   City                             Total (mm)  Rainy hrs  Rainy days
 -------------------------------------------------------------------------
-2020   London (Heathrow)                     924.2        314         150
-2020   New York City (Central Park)         1166.0        705         132
+2015   London (Heathrow)                     819.8        278         136
+2015   New York City (Central Park)         1048.8        599         114
 ...
 
 ==============================Annual Temperature Summary==============================
-Years 2020–2024 | HDD base: 15.5°C  CDD base: 18.0°C  Comfort base: 21.0°C
+Years 2015–2024 | HDD base: 15.5°C  CDD base: 18.0°C  Comfort base: 21.0°C
 
 Year   City                              HDD (°C/obs)  CDD (°C/obs)  Comfort dev  <0°C hrs
 -------------------------------------------------------------------------------------------
-2020   London (Heathrow)                         4.50          0.68         9.33       104
-2020   New York City (Central Park)              4.69          2.07         9.35       401
+2015   London (Heathrow)                         4.42          0.34         9.35        85
+2015   New York City (Central Park)              5.43          2.44        10.15      1085
 ...
 ```
 
