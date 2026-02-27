@@ -46,6 +46,13 @@ more rainy hours, and comparable or greater numbers of rainy days.  London's
 "drizzly" reputation comes from frequent low-intensity events (< 0.254 mm)
 that do not register as measurable precipitation under the standard definition.
 
+The figure below sweeps the threshold continuously (log scale, 0.01–5 mm) to
+confirm the gap is not an artefact of the 0.254 mm choice.  NYC leads on rainy
+hours across the entire range; London briefly overtakes on rainy *days* only
+below ~0.1 mm, where its sub-trace drizzle events inflate the count.
+
+![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
+
 ## Temperature (2020–2024)
 
 Temperature is taken from the ISD `TMP` field (see [Methodology](#methodology)).
@@ -76,6 +83,14 @@ FM-15) do not distort the comparison.
   400–900 hours a year; London typically logs 100–500.  The HDD metric alone
   understated this because NYC's hot summers partially cancel its winter cold
   when averaged over the full year.
+
+The figure below shows the full hourly temperature distributions alongside the
+mean absolute deviation from any chosen reference temperature.  London's
+histogram is narrowly Gaussian around 10–11 °C; NYC's is flatter and wider,
+and its deviation curve sits higher across the board — reflecting a more
+continental climate with hotter summers and colder winters.
+
+![Temperature distributions and deviation](plots/temperature_deviation.png)
 
 ### Why the stereotype persists
 
@@ -146,43 +161,6 @@ Year   City                              HDD (°C/obs)  CDD (°C/obs)  Comfort d
 2020   New York City (Central Park)              4.69          2.07         9.35       401
 ...
 ```
-
-## Plots
-
-### Rainfall threshold sensitivity (`--plot`)
-
-A two-panel figure with precipitation threshold (mm, log scale) as the shared
-x-axis.  The top panel shows **mean annual rainy hours** and the bottom panel
-shows **mean annual rainy days**, both averaged over all years in the requested
-range.  London is drawn in red, NYC in blue.  A dashed vertical line marks the
-standard WMO threshold (0.254 mm).
-
-This plot shows that the London/NYC rainy-hours gap is robust: NYC leads
-across the entire threshold range from 0.01 mm to 5 mm.  London briefly
-overtakes NYC on rainy *days* only at very low thresholds (< ~0.1 mm), where
-London's frequent sub-trace drizzle events inflate its day count — confirming
-that the reporting asymmetry described in the methodology section is real.
-
-![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
-
-### Temperature distributions (`--temp-plot`)
-
-A side-by-side two-panel figure:
-
-**(a) Temperature histogram** — overlaid density histograms (alpha = 0.5, no
-stacking) of all hourly temperature observations across the requested years.
-London's distribution is broadly Gaussian, centred around 10–11 °C.  NYC's
-distribution is flatter and wider, reflecting a more continental climate with
-hotter summers and colder winters.
-
-**(b) Mean absolute deviation vs chosen temperature** — for a sweep of
-reference temperatures from −10 °C to 40 °C, the plot shows the mean absolute
-deviation of hourly observations from that reference.  The minimum of each
-city's curve is the single temperature that minimises discomfort, analogous to
-an empirical "comfort temperature".  NYC's curve is wider and shifted to the
-right of London's, reflecting its greater seasonal temperature range.
-
-![Temperature distributions and deviation](plots/temperature_deviation.png)
 
 ## Methodology
 
