@@ -156,20 +156,26 @@ def annual_summary(
 
 def annual_temperature_summary(
     processed_df: pd.DataFrame,
-    baselines_c: dict[str, float] | None = None,
+    hdd_base_c: float | None = None,
+    cdd_base_c: float | None = None,
+    comfort_base_c: float | None = None,
     label: str = "",
 ) -> pd.DataFrame:
     """Compute per-year temperature discomfort statistics from a processed DataFrame.
 
-    For each baseline temperature *b* and each valid hourly observation *T*:
+    Three standard metrics are computed, each from its own conventional baseline:
 
-    * **cold deviation** = max(b − T, 0)  → how many °C below the baseline
-    * **warm deviation** = max(T − b, 0)  → how many °C above the baseline
+    * **HDD** (Heating Degree — hours): mean °C *below* ``hdd_base_c`` per
+      observation (WMO / Met Office base: 15.5°C).
+    * **CDD** (Cooling Degree — hours): mean °C *above* ``cdd_base_c`` per
+      observation (standard base: 18°C).
+    * **Comfort deviation**: mean °C deviation from ``comfort_base_c`` in
+      *either* direction — i.e. mean(|T − base|) — from a single comfort
+      temperature (default 21°C).
 
-    All deviations are averaged over the number of valid observations in that
-    year, giving a **mean °C deviation per observation**.  This normalisation
-    makes stations with different observation densities (e.g. FM-12 SYNOP vs
-    FM-15 METAR) directly comparable.
+    All metrics are normalised by the number of valid hourly observations in
+    that year, so stations with different reporting densities (FM-12 SYNOP
+    ~24 obs/day vs FM-15 METAR ~12–24 obs/day) are directly comparable.
 
     Parameters
     ----------
@@ -177,32 +183,38 @@ def annual_temperature_summary(
         Tidy DataFrame as returned by :func:`lon_nyc.noaa.process_temperature_data`.
         Must be indexed by a UTC-aware :class:`pandas.DatetimeIndex` and have a
         ``temp_c`` column.
-    baselines_c:
-        Dict mapping a human-readable label to a baseline temperature in °C.
-        Defaults to :data:`lon_nyc.config.COMFORT_BASELINES_C`.
+    hdd_base_c:
+        Baseline for HDD calculation.  Defaults to :data:`lon_nyc.config.HDD_BASE_C`.
+    cdd_base_c:
+        Baseline for CDD calculation.  Defaults to :data:`lon_nyc.config.CDD_BASE_C`.
+    comfort_base_c:
+        Baseline for comfort-deviation calculation.
+        Defaults to :data:`lon_nyc.config.COMFORT_BASE_C`.
     label:
         Station/city label added as a column to the result.
 
     Returns
     -------
     pd.DataFrame
-        One row per (year, baseline) combination with columns:
+        One row per calendar year with columns:
 
         * ``label``
         * ``year``
-        * ``baseline_label``   – the key from *baselines_c*
-        * ``baseline_c``       – the numeric baseline value
         * ``n_obs``            – number of valid temperature observations
-        * ``mean_cold_dev_c``  – mean °C below baseline (heating pressure)
-        * ``mean_warm_dev_c``  – mean °C above baseline (cooling pressure)
-        * ``mean_abs_dev_c``   – mean total deviation (cold + warm)
+        * ``mean_hdd_c``       – mean °C below HDD base (heating pressure)
+        * ``mean_cdd_c``       – mean °C above CDD base (cooling pressure)
+        * ``mean_comfort_dev_c`` – mean |T − comfort base| (total discomfort)
     """
-    if baselines_c is None:
-        baselines_c = cfg.COMFORT_BASELINES_C
+    if hdd_base_c is None:
+        hdd_base_c = cfg.HDD_BASE_C
+    if cdd_base_c is None:
+        cdd_base_c = cfg.CDD_BASE_C
+    if comfort_base_c is None:
+        comfort_base_c = cfg.COMFORT_BASE_C
 
     empty_cols = [
-        "label", "year", "baseline_label", "baseline_c",
-        "n_obs", "mean_cold_dev_c", "mean_warm_dev_c", "mean_abs_dev_c",
+        "label", "year", "n_obs",
+        "mean_hdd_c", "mean_cdd_c", "mean_comfort_dev_c",
     ]
 
     if processed_df.empty or "temp_c" not in processed_df.columns:
@@ -217,36 +229,28 @@ def annual_temperature_summary(
 
     dti = pd.DatetimeIndex(df.index)
     df["year"] = dti.year
+    df["hdd"] = (hdd_base_c - df["temp_c"]).clip(lower=0)
+    df["cdd"] = (df["temp_c"] - cdd_base_c).clip(lower=0)
+    df["comfort_dev"] = (df["temp_c"] - comfort_base_c).abs()
 
-    rows = []
-    for bl_label, bl_c in baselines_c.items():
-        df["cold_dev"] = (bl_c - df["temp_c"]).clip(lower=0)
-        df["warm_dev"] = (df["temp_c"] - bl_c).clip(lower=0)
-
-        yearly = (
-            df.groupby("year")
-            .agg(
-                n_obs=("temp_c", "count"),
-                sum_cold=("cold_dev", "sum"),
-                sum_warm=("warm_dev", "sum"),
-            )
-            .reset_index()
+    yearly = (
+        df.groupby("year")
+        .agg(
+            n_obs=("temp_c", "count"),
+            sum_hdd=("hdd", "sum"),
+            sum_cdd=("cdd", "sum"),
+            sum_comfort=("comfort_dev", "sum"),
         )
-        yearly["mean_cold_dev_c"] = yearly["sum_cold"] / yearly["n_obs"]
-        yearly["mean_warm_dev_c"] = yearly["sum_warm"] / yearly["n_obs"]
-        yearly["mean_abs_dev_c"] = yearly["mean_cold_dev_c"] + yearly["mean_warm_dev_c"]
-        yearly["baseline_label"] = bl_label
-        yearly["baseline_c"] = bl_c
-        yearly["label"] = label
-        rows.append(yearly)
-
-    result = pd.concat(rows, ignore_index=True)
-    result = result[empty_cols]
-    result["n_obs"] = result["n_obs"].astype(int)
-    result = result.sort_values(["year", "baseline_c"]).reset_index(drop=True)
-
-    logger.info(
-        "Temperature summary for '%s': %d year×baseline rows.", label, len(result)
+        .reset_index()
     )
+    yearly["mean_hdd_c"] = yearly["sum_hdd"] / yearly["n_obs"]
+    yearly["mean_cdd_c"] = yearly["sum_cdd"] / yearly["n_obs"]
+    yearly["mean_comfort_dev_c"] = yearly["sum_comfort"] / yearly["n_obs"]
+    yearly["label"] = label
+    yearly["n_obs"] = yearly["n_obs"].astype(int)
+
+    result = yearly[empty_cols].reset_index(drop=True)
+
+    logger.info("Temperature summary for '%s': %d years.", label, len(result))
     return result
 

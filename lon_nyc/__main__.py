@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> None:
     combined = combined.sort_values(["year", "label"]).reset_index(drop=True)
 
     combined_temp = pd.concat(temp_frames, ignore_index=True)
-    combined_temp = combined_temp.sort_values(["year", "baseline_c", "label"]).reset_index(drop=True)
+    combined_temp = combined_temp.sort_values(["year", "label"]).reset_index(drop=True)
 
     # ── Print precipitation table ─────────────────────────────────────────────
     print(
@@ -109,15 +109,20 @@ def main(argv: list[str] | None = None) -> None:
             print()
 
     # ── Print temperature discomfort table ────────────────────────────────────
+    # HDD = mean °C below 15.5°C per obs (heating pressure)
+    # CDD = mean °C above 18°C per obs   (cooling pressure)
+    # Comfort dev = mean |T − 21°C| per obs (total discomfort from both sides)
     print(
-        f"\n{'Annual Temperature Discomfort (mean °C deviation per obs)':=^80}\n"
+        f"\n{'Annual Temperature Discomfort (mean °C per observation)':=^80}\n"
         f"{'Years':>4} {args.start}–{args.end} | "
-        f"baselines: {', '.join(f'{b}°C' for b in config.COMFORT_BASELINES_C.values())}\n"
+        f"HDD base: {config.HDD_BASE_C}°C  "
+        f"CDD base: {config.CDD_BASE_C}°C  "
+        f"Comfort base: {config.COMFORT_BASE_C}°C\n"
     )
 
     temp_header = (
-        f"{'Year':<6} {'City':<32} {'Baseline':>18} "
-        f"{'Cold dev':>10} {'Warm dev':>10} {'Total dev':>10}"
+        f"{'Year':<6} {'City':<32} "
+        f"{'HDD (°C/obs)':>13} {'CDD (°C/obs)':>13} {'Comfort dev':>12}"
     )
     print(temp_header)
     print("-" * len(temp_header))
@@ -129,11 +134,12 @@ def main(argv: list[str] | None = None) -> None:
             print()
         prev_year = yr
         print(
-            f"{yr:<6} {row['label']:<32} {row['baseline_label']:>18} "
-            f"{row['mean_cold_dev_c']:>10.2f} "
-            f"{row['mean_warm_dev_c']:>10.2f} "
-            f"{row['mean_abs_dev_c']:>10.2f}"
+            f"{yr:<6} {row['label']:<32} "
+            f"{row['mean_hdd_c']:>13.2f} "
+            f"{row['mean_cdd_c']:>13.2f} "
+            f"{row['mean_comfort_dev_c']:>12.2f}"
         )
+
 
 
 if __name__ == "__main__":

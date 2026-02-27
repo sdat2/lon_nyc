@@ -36,21 +36,20 @@ TMP_COLUMN: str = "TMP"
 TMP_MISSING: frozenset = frozenset({"+9999", "9999", "+99999"})
 
 # Comfort baseline temperatures (°C) used for the "temperature discomfort"
-# metric.  For each baseline the mean deviation below (too cold) and above
-# (too warm) is computed across all valid hourly observations, then reported
-# in °C per observation so that stations with different observation densities
-# are directly comparable.
+# metric.  Values are normalised by observation count so that stations with
+# different reporting densities (FM-12 vs FM-15) are directly comparable.
 #
-# Baselines chosen:
-#   15.5°C – standard engineering Heating Degree Day base (WMO / UK Met Office)
-#   18.0°C – standard Cooling Degree Day base
-#   21.0°C – a comfortable indoor/outdoor temperature often cited in comfort
-#             studies; maximises sensitivity to both heating and cooling loads
-COMFORT_BASELINES_C: dict[str, float] = {
-    "HDD base (15.5°C)": 15.5,
-    "CDD base (18°C)": 18.0,
-    "Comfort base (21°C)": 21.0,
-}
+# Standard degree-day bases:
+#   HDD_BASE_C – 15.5°C (65°F): WMO / UK Met Office heating degree-day base.
+#                HDD = mean deviation *below* this threshold per observation.
+#   CDD_BASE_C – 18.0°C (65°F US / 18°C EU): cooling degree-day base.
+#                CDD = mean deviation *above* this threshold per observation.
+#   COMFORT_BASE_C – 21°C: a comfortable outdoor temperature; the two-sided
+#                deviation from this single baseline captures both heating and
+#                cooling pressure in one number.
+HDD_BASE_C: float = 15.5
+CDD_BASE_C: float = 18.0
+COMFORT_BASE_C: float = 21.0
 
 # Threshold (mm) above which an hour is considered "rainy".
 # 0.254 mm = 0.01 inch, the standard WMO / US NWS definition of a measurable
