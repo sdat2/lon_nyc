@@ -109,8 +109,13 @@ def download_and_concatenate_s3_csvs(
     s3_client,
     bucket_name: str,
     file_keys: Sequence[str],
+    cache_dir: str | None = None,
 ) -> pd.DataFrame:
     """Download ISD CSV files from S3 and concatenate them into one DataFrame.
+
+    Downloaded files are cached to *cache_dir* (default: ``.cache/`` relative
+    to the current working directory) so that repeated runs do not re-fetch
+    the same data from S3.  Pass ``cache_dir=""`` to disable caching.
 
     Parameters
     ----------
@@ -120,6 +125,9 @@ def download_and_concatenate_s3_csvs(
         Name of the S3 bucket.
     file_keys:
         Iterable of object keys to download.
+    cache_dir:
+        Directory in which to cache raw CSV files.  Defaults to ``.cache``.
+        Set to ``""`` or ``None`` to disable caching.
 
     Returns
     -------
@@ -127,20 +135,44 @@ def download_and_concatenate_s3_csvs(
         Concatenated raw data, or an empty DataFrame if nothing could be
         downloaded.
     """
+    import pathlib
+
+    if cache_dir is None:
+        cache_dir = ".cache"
+
+    cache_path = pathlib.Path(cache_dir) if cache_dir else None
+    if cache_path is not None:
+        cache_path.mkdir(parents=True, exist_ok=True)
+
     frames: list[pd.DataFrame] = []
     for key in file_keys:
+        # Use a flat filename derived from the key to avoid subdirectory issues
+        cache_file = cache_path / key.replace("/", "_") if cache_path else None
+
         try:
-            logger.info("Downloading s3://%s/%s", bucket_name, key)
-            obj = s3_client.get_object(Bucket=bucket_name, Key=key)
-            raw_bytes = obj["Body"].read()
-            df = pd.read_csv(
-                io.BytesIO(raw_bytes),
-                dtype=str,
-                keep_default_na=False,
-                na_values=[""],
-            )
+            if cache_file is not None and cache_file.exists():
+                logger.info("Cache hit: %s", cache_file)
+                df = pd.read_csv(
+                    cache_file,
+                    dtype=str,
+                    keep_default_na=False,
+                    na_values=[""],
+                )
+            else:
+                logger.info("Downloading s3://%s/%s", bucket_name, key)
+                obj = s3_client.get_object(Bucket=bucket_name, Key=key)
+                raw_bytes = obj["Body"].read()
+                if cache_file is not None:
+                    cache_file.write_bytes(raw_bytes)
+                    logger.info("Cached to %s", cache_file)
+                df = pd.read_csv(
+                    io.BytesIO(raw_bytes),
+                    dtype=str,
+                    keep_default_na=False,
+                    na_values=[""],
+                )
             frames.append(df)
-            logger.info("Downloaded %s (%d rows).", key, len(df))
+            logger.info("Loaded %s (%d rows).", key, len(df))
         except s3_client.exceptions.NoSuchKey:
             logger.warning("Not found in S3: s3://%s/%s – skipping.", bucket_name, key)
         except Exception as exc:  # noqa: BLE001

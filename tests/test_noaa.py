@@ -57,7 +57,9 @@ def test_download_concatenates_multiple_files():
     ]
     s3.exceptions.NoSuchKey = type("NoSuchKey", (Exception,), {})
 
-    result = noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["a.csv", "b.csv"])
+    result = noaa.download_and_concatenate_s3_csvs(
+        s3, "bucket", ["a.csv", "b.csv"], cache_dir=""
+    )
     assert len(result) == 2
 
 
@@ -69,7 +71,9 @@ def test_download_skips_missing_key():
     s3.exceptions.NoSuchKey = NoSuchKey
     s3.get_object.side_effect = [{"Body": io.BytesIO(csv1)}, NoSuchKey("not found")]
 
-    result = noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["a.csv", "b.csv"])
+    result = noaa.download_and_concatenate_s3_csvs(
+        s3, "bucket", ["a.csv", "b.csv"], cache_dir=""
+    )
     assert len(result) == 1
 
 
@@ -79,8 +83,26 @@ def test_download_returns_empty_when_all_missing():
     s3.exceptions.NoSuchKey = NoSuchKey
     s3.get_object.side_effect = NoSuchKey("not found")
 
-    result = noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["a.csv"])
+    result = noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["a.csv"], cache_dir="")
     assert result.empty
+
+
+def test_download_uses_cache_on_second_call(tmp_path):
+    """Second call with the same key must not hit S3 when a cache file exists."""
+    csv1 = _make_csv_bytes({"DATE": ["2023-01-01T00:00:00"], "AA1": ["0005,01,C,5"]})
+
+    s3 = MagicMock()
+    s3.get_object.return_value = {"Body": io.BytesIO(csv1)}
+    s3.exceptions.NoSuchKey = type("NoSuchKey", (Exception,), {})
+
+    cache_dir = str(tmp_path)
+    # First call — downloads and caches
+    noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["2023/test.csv"], cache_dir=cache_dir)
+    assert s3.get_object.call_count == 1
+
+    # Second call — must serve from cache, no new S3 request
+    noaa.download_and_concatenate_s3_csvs(s3, "bucket", ["2023/test.csv"], cache_dir=cache_dir)
+    assert s3.get_object.call_count == 1  # still 1
 
 
 # ---------------------------------------------------------------------------

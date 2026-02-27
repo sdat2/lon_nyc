@@ -200,10 +200,11 @@ def annual_temperature_summary(
 
         * ``label``
         * ``year``
-        * ``n_obs``            – number of valid temperature observations
-        * ``mean_hdd_c``       – mean °C below HDD base (heating pressure)
-        * ``mean_cdd_c``       – mean °C above CDD base (cooling pressure)
+        * ``n_obs``              – number of valid temperature observations
+        * ``mean_hdd_c``         – mean °C below HDD base (heating pressure)
+        * ``mean_cdd_c``         – mean °C above CDD base (cooling pressure)
         * ``mean_comfort_dev_c`` – mean |T − comfort base| (total discomfort)
+        * ``sub_zero_hours``     – count of hours where T < 0°C
     """
     if hdd_base_c is None:
         hdd_base_c = cfg.HDD_BASE_C
@@ -214,7 +215,7 @@ def annual_temperature_summary(
 
     empty_cols = [
         "label", "year", "n_obs",
-        "mean_hdd_c", "mean_cdd_c", "mean_comfort_dev_c",
+        "mean_hdd_c", "mean_cdd_c", "mean_comfort_dev_c", "sub_zero_hours",
     ]
 
     if processed_df.empty or "temp_c" not in processed_df.columns:
@@ -232,6 +233,7 @@ def annual_temperature_summary(
     df["hdd"] = (hdd_base_c - df["temp_c"]).clip(lower=0)
     df["cdd"] = (df["temp_c"] - cdd_base_c).clip(lower=0)
     df["comfort_dev"] = (df["temp_c"] - comfort_base_c).abs()
+    df["sub_zero"] = (df["temp_c"] < 0.0).astype(int)
 
     yearly = (
         df.groupby("year")
@@ -240,6 +242,7 @@ def annual_temperature_summary(
             sum_hdd=("hdd", "sum"),
             sum_cdd=("cdd", "sum"),
             sum_comfort=("comfort_dev", "sum"),
+            sub_zero_hours=("sub_zero", "sum"),
         )
         .reset_index()
     )
@@ -248,6 +251,7 @@ def annual_temperature_summary(
     yearly["mean_comfort_dev_c"] = yearly["sum_comfort"] / yearly["n_obs"]
     yearly["label"] = label
     yearly["n_obs"] = yearly["n_obs"].astype(int)
+    yearly["sub_zero_hours"] = yearly["sub_zero_hours"].astype(int)
 
     result = yearly[empty_cols].reset_index(drop=True)
 

@@ -275,5 +275,16 @@ def test_temp_summary_column_order():
     result = analysis.annual_temperature_summary(df)
     assert list(result.columns) == [
         "label", "year", "n_obs",
-        "mean_hdd_c", "mean_cdd_c", "mean_comfort_dev_c",
+        "mean_hdd_c", "mean_cdd_c", "mean_comfort_dev_c", "sub_zero_hours",
     ]
+
+
+def test_temp_summary_sub_zero_hours():
+    df = _make_temp_df([
+        ("2023-01-01 00:00", -5.0),   # below zero
+        ("2023-01-01 01:00",  0.0),   # exactly zero — not counted
+        ("2023-01-01 02:00",  3.0),   # above zero
+        ("2023-01-01 03:00", -1.0),   # below zero
+    ])
+    result = analysis.annual_temperature_summary(df)
+    assert result.iloc[0]["sub_zero_hours"] == 2
