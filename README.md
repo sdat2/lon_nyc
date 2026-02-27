@@ -110,8 +110,8 @@ lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 
 ```bash
 python -m lon_nyc --start 2020 --end 2024 \
-    --plot threshold_sensitivity.png \
-    --temp-plot temperature_panels.png
+    --plot plots/threshold_sensitivity.png \
+    --temp-plot plots/temperature_panels.png
 ```
 
 Sample output:
