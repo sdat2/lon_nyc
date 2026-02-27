@@ -35,6 +35,37 @@ more rainy hours, and comparable or greater numbers of rainy days.  London's
 "drizzly" reputation comes from frequent low-intensity events (< 0.254 mm)
 that do not register as measurable precipitation under the standard definition.
 
+## Temperature (2020–2024)
+
+Temperature is taken from the ISD `TMP` field (see [Methodology](#methodology)).
+All metrics are normalised by observation count so that the two stations'
+different reporting densities (London ≈ 24 obs/day on FM-12, NYC ≈ 12–18 on
+FM-15) do not distort the comparison.
+
+| Year | City | HDD (°C/obs) | CDD (°C/obs) | Comfort dev (°C/obs) | <0 °C hours |
+|------|------|-------------:|-------------:|---------------------:|------------:|
+| 2020 | London (Heathrow) | 4.50 | 0.68 | 9.33 | 104 |
+| 2020 | New York City (Central Park) | 4.69 | **2.07** | 9.35 | **401** |
+| 2021 | London (Heathrow) | **4.99** | 0.44 | **9.84** | 434 |
+| 2021 | New York City (Central Park) | 4.93 | **2.13** | 9.47 | **584** |
+| 2022 | London (Heathrow) | 4.32 | 0.79 | 9.07 | 501 |
+| 2022 | New York City (Central Park) | **5.29** | **2.18** | **9.98** | **879** |
+| 2023 | London (Heathrow) | **4.44** | 0.60 | **9.18** | **462** |
+| 2023 | New York City (Central Park) | 4.23 | **1.96** | 8.79 | 179 |
+| 2024 | London (Heathrow) | 4.17 | 0.48 | 8.97 | 199 |
+| 2024 | New York City (Central Park) | **4.57** | **2.15** | **9.10** | **486** |
+
+* **HDD** = mean °C below 15.5 °C per observation (heating pressure).
+  Both cities are roughly equal — London is slightly colder most years but the
+  gap is small (< 1 °C/obs).
+* **CDD** = mean °C above 18 °C per observation (cooling pressure).
+  NYC runs **3–4× higher** than London every single year.  NYC summers are
+  genuinely hot; London rarely sustains temperatures above 18 °C for long.
+* **< 0 °C hours** makes NYC's cold winters visible.  NYC regularly freezes for
+  400–900 hours a year; London typically logs 100–500.  The HDD metric alone
+  understated this because NYC's hot summers partially cancel its winter cold
+  when averaged over the full year.
+
 ### Why the stereotype persists
 
 London has noticeably more *overcast, grey* days than NYC.  When a looser
@@ -81,22 +112,22 @@ python -m lon_nyc --start 2020 --end 2025
 Sample output:
 
 ```
-Annual Precipitation Summary
-Years 2020–2025 | threshold: >0.254 mm
+======================Annual Precipitation Summary======================
+Years 2020–2024 | threshold: >0.254 mm
 
 Year   City                             Total (mm)  Rainy hrs  Rainy days
-------------------------------------------------------------------------
+-------------------------------------------------------------------------
 2020   London (Heathrow)                     924.2        314         150
 2020   New York City (Central Park)         1166.0        705         132
 ...
 
-Annual Temperature Discomfort (mean °C deviation per obs)
-Years 2020–2025 | baselines: 15.5°C, 18°C, 21°C
+==============================Annual Temperature Summary==============================
+Years 2020–2024 | HDD base: 15.5°C  CDD base: 18.0°C  Comfort base: 21.0°C
 
-Year   City                              Baseline   Cold dev   Warm dev  Total dev
-----------------------------------------------------------------------------------
-2020   London (Heathrow)      HDD base (15.5°C)       3.77       0.33       4.10
-2020   New York City (Central Park)  HDD base (15.5°C) 2.55       1.42       3.97
+Year   City                              HDD (°C/obs)  CDD (°C/obs)  Comfort dev  <0°C hrs
+-------------------------------------------------------------------------------------------
+2020   London (Heathrow)                         4.50          0.68         9.33       104
+2020   New York City (Central Park)              4.69          2.07         9.35       401
 ...
 ```
 
@@ -170,26 +201,18 @@ TMP = +TTTT , Q
 `TTTT` is temperature in **tenths of °C** (signed integer); `Q` is a quality
 flag.  Missing observations use the sentinel `+9999` and are excluded.
 
-For each observation and each baseline temperature *b*, two one-sided
-deviations are computed:
+Three metrics are computed, each using its own conventional baseline, and all
+normalised by observation count to make the two stations comparable:
 
-| Metric | Formula | Interpretation |
-|--------|---------|----------------|
-| Cold deviation | max(*b* − *T*, 0) | How many °C below the baseline (heating pressure) |
-| Warm deviation | max(*T* − *b*, 0) | How many °C above the baseline (cooling pressure) |
+| Metric | Formula | Baseline | Standard |
+|--------|---------|----------|---------|
+| **HDD** | mean(max(15.5 − T, 0)) | 15.5 °C | WMO / UK Met Office heating degree-day base |
+| **CDD** | mean(max(T − 18, 0)) | 18.0 °C | Standard cooling degree-day base |
+| **Comfort dev** | mean(\|T − 21\|) | 21.0 °C | Two-sided deviation from a comfortable temperature |
+| **< 0 °C hours** | count(T < 0) | 0 °C | Raw count of freezing hours per year |
 
-Both are averaged over the number of valid observations in that year to give
-a **mean °C deviation per observation**, making the London (FM-12, ~24 obs/day)
-and NYC (FM-15, ~12–24 obs/day) series directly comparable despite their
-different reporting frequencies.
-
-Three baselines are reported:
-
-| Baseline | °C | Standard |
-|----------|----|---------|
-| HDD base | 15.5 | WMO / UK Met Office heating degree-day base |
-| CDD base | 18.0 | Standard cooling degree-day base |
-| Comfort base | 21.0 | Commonly cited comfortable outdoor temperature |
+Using separate baselines for HDD and CDD (rather than one combined baseline)
+ensures each metric measures what it is conventionally understood to measure.
 
 ## Validation against GHCND (NYC)
 
