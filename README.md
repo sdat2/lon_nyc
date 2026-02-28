@@ -33,7 +33,7 @@ Annual totals for 2015–2024 (2025 excluded as a partial year):
 | Year | City | Total (mm) | Rainy hours | Rainy days |
 |------|------|----------:|------------:|-----------:|
 | 2015 | London (Heathrow) | 820 | 278 | **136** |
-| 2015 | New York City (Central Park) | **1049** | **599** | 114 |
+| 2015 | New York City (Central Park) | **1047** | **598** | 114 |
 | 2016 | London (Heathrow) | 856 | 273 | **128** |
 | 2016 | New York City (Central Park) | **1071** | **556** | 117 |
 | 2017 | London (Heathrow) | 846 | 268 | **132** |
@@ -41,17 +41,17 @@ Annual totals for 2015–2024 (2025 excluded as a partial year):
 | 2018 | London (Heathrow) | 868 | 270 | 124 |
 | 2018 | New York City (Central Park) | **1658** | **896** | **152** |
 | 2019 | London (Heathrow) | 945 | 313 | 143 |
-| 2019 | New York City (Central Park) | **1392** | **796** | **153** |
+| 2019 | New York City (Central Park) | **1384** | **787** | **151** |
 | 2020 | London (Heathrow) | 924 | 314 | **150** |
-| 2020 | New York City (Central Park) | **1166** | **705** | 132 |
+| 2020 | New York City (Central Park) | **1165** | **704** | 132 |
 | 2021 | London (Heathrow) | 998 | 288 | 136 |
-| 2021 | New York City (Central Park) | **1527** | **666** | **138** |
+| 2021 | New York City (Central Park) | **1527** | **664** | **138** |
 | 2022 | London (Heathrow) | 684 | 342 | 119 |
-| 2022 | New York City (Central Park) | **1186** | **668** | **127** |
+| 2022 | New York City (Central Park) | **1177** | **662** | **127** |
 | 2023 | London (Heathrow) | 737 | 526 | 128 |
-| 2023 | New York City (Central Park) | **1523** | **703** | 128 |
+| 2023 | New York City (Central Park) | **1521** | **700** | 128 |
 | 2024 | London (Heathrow) | 680 | 477 | **123** |
-| 2024 | New York City (Central Park) | **1178** | **698** | 121 |
+| 2024 | New York City (Central Park) | **1176** | **695** | 121 |
 
 A "rainy hour or rainy day" uses the standard WMO threshold of **> 0.254 mm
 (0.01 inch)** of liquid-equivalent precipitation.
@@ -88,7 +88,7 @@ counted only in snow days).
 | Year | City | Rainy days | Snow days | Liquid-rain days | Snow hours | Liquid-rain hours |
 |------|------|----------:|----------:|-----------------:|-----------:|------------------:|
 | 2015 | London (Heathrow) | 136 | 1 | 135 | 1 | 277 |
-| 2015 | New York City (Central Park) | 114 | **20** | 94 | **93** | 506 |
+| 2015 | New York City (Central Park) | 114 | **20** | 94 | **93** | 505 |
 | 2016 | London (Heathrow) | 128 | 4 | 124 | 4 | 269 |
 | 2016 | New York City (Central Park) | 117 | **12** | 105 | **65** | 491 |
 | 2017 | London (Heathrow) | 132 | 3 | 129 | 3 | 265 |
@@ -96,19 +96,19 @@ counted only in snow days).
 | 2018 | London (Heathrow) | 124 | 1 | 123 | 1 | 269 |
 | 2018 | New York City (Central Park) | 152 | **17** | 135 | **90** | 806 |
 | 2019 | London (Heathrow) | 143 | 2 | 141 | 2 | 311 |
-| 2019 | New York City (Central Park) | 153 | **14** | 139 | **62** | 734 |
+| 2019 | New York City (Central Park) | 151 | **14** | 137 | **62** | 725 |
 | 2020 | London (Heathrow) | 150 | 1 | 149 | 1 | 313 |
-| 2020 | New York City (Central Park) | 132 | **7** | 125 | **31** | 674 |
+| 2020 | New York City (Central Park) | 132 | **7** | 125 | **31** | 673 |
 | 2021 | London (Heathrow) | 136 | 1 | 135 | 1 | 287 |
-| 2021 | New York City (Central Park) | 138 | **15** | 123 | **75** | 591 |
+| 2021 | New York City (Central Park) | 138 | **15** | 123 | **75** | 589 |
 | 2022 | London (Heathrow) | 119 | 0 | 119 | 0 | 342 |
-| 2022 | New York City (Central Park) | 127 | **9** | 118 | **59** | 609 |
+| 2022 | New York City (Central Park) | 127 | **9** | 118 | **59** | 603 |
 | 2023 | London (Heathrow) | 128 | 1 | 127 | 1 | 525 |
-| 2023 | New York City (Central Park) | 128 | **6** | 122 | **18** | 685 |
+| 2023 | New York City (Central Park) | 128 | **6** | 122 | **18** | 682 |
 | 2024 | London (Heathrow) | 123 | 0 | 123 | 0 | 477 |
-| 2024 | New York City (Central Park) | 121 | **10** | 111 | **50** | 648 |
+| 2024 | New York City (Central Park) | 121 | **10** | 111 | **50** | 645 |
 | **Mean** | **London (Heathrow)** | **132** | **1.4** | **130.5** | **1** | **334** |
-| **Mean** | **New York City (Central Park)** | **131** | **12.5** | **118.7** | **62** | **631** |
+| **Mean** | **New York City (Central Park)** | **131** | **12.5** | **118.5** | **62** | **628** |
 
 **Key findings:**
 
@@ -120,9 +120,9 @@ counted only in snow days).
   a single nor'easter (e.g. Blizzard Jonas January 2016, Winter Storm Stella
   March 2017) can account for 20–40 snow hours in a single multi-day event.
 * **London gets more liquid-rain days than NYC** when snow days are set aside
-  (avg 130.5 vs 118.7/yr), consistent with its higher frequency of
+  (avg 130.5 vs 118.5/yr), consistent with its higher frequency of
   low-intensity drizzle events noted in the precipitation section above.
-* **NYC's liquid-rain hours still far exceed London's** (avg 631 vs 334/yr),
+* **NYC's liquid-rain hours still far exceed London's** (avg 628 vs 334/yr),
   confirming that NYC's dominance in total hourly precipitation is driven by
   liquid rain, not snow.
 * London had **zero measurable snow hours** in both 2022 and 2024 — years that
@@ -181,13 +181,13 @@ continental climate with hotter summers and colder winters.
 
 ## Long-term trends (2005–2024)
 
-NYC Central Park station data is available in the NOAA ISD from 2005 onwards
-(earlier years exist in the archive but use a different report-type label —
-`AUTO` rather than `FM-15` — and were excluded from the 2015–2024 summaries
-above; they are included here after verification that the data are consistent).
-The figure below shows six annual metrics on a shared year axis.  Each city's
-annual value is plotted as a semi-transparent line with dots; the thick line is
-a 5-year centred rolling mean (±1 std shaded) to reveal any secular drift.
+NYC Central Park station data is available in the NOAA ISD from 2005 onwards.
+Prior to ~2012, the ISD labels these records as `AUTO` rather than `FM-15`;
+the format and hourly frequency are identical (ASOS `:51` timestamps), and the
+data are included here after validation against GHCND totals.  The figure below
+shows six annual metrics on a shared year axis.  Each city's annual value is
+plotted as a semi-transparent line with dots; the thick line is a 5-year
+centred rolling mean (±1 std shaded) to reveal any secular drift.
 
 ![Long-term trends 2005–2024](plots/long_term_trends.png)
 
@@ -207,9 +207,9 @@ a 5-year centred rolling mean (±1 std shaded) to reveal any secular drift.
   NYC averages 12–15 snow days/yr in the 2000s and 2010s, dipping to 6–10
   in the early 2020s; London's record remains flat at 0–4 days throughout.
 * **Sub-zero hours (panel e) show NYC becoming slightly milder** over the
-  period — the 5-year mean fell from ~700–1100 hrs/yr in 2005–2015 to
+  period — the 5-year mean fell from ~800–1100 hrs/yr in 2005–2015 to
   ~400–600 hrs/yr in 2020–2024 — consistent with the broader US trend of
-  warming winters.  London's sub-zero hours are stable at 50–250 hrs/yr.
+  warming winters.  London's sub-zero hours are stable at 50–200 hrs/yr.
 * **CDD (panel f) is rising for both cities**, most visibly for London where
   the rolling mean has climbed from ~0.3 to ~0.7 °C/obs over the 20 years,
   consistent with European summer warming trends.  NYC's CDD is higher and
@@ -346,7 +346,8 @@ at all* (mixed days are classified as snow days only).
 
 | Code | Name | Kept? | Reason |
 |------|------|-------|--------|
-| FM-15 | METAR (hourly) | ✅ | Primary NYC observation type; also present at Heathrow but used only as a fallback (see note below) |
+| FM-15 | METAR (hourly) | ✅ | Primary NYC observation type (2012–present); also present at Heathrow but used only as a fallback (see note below) |
+| AUTO  | ASOS automated obs (hourly) | ✅ | NYC label prior to ~2012; identical format and frequency to FM-15 |
 | FM-12 | SYNOP (hourly) | ✅ | Primary London/Heathrow observation type |
 | FM-16 | SPECI (special METAR) | ❌ | Sub-hourly; variable AA1 period causes double-counting |
 | SOD/SOM | Daily/monthly summaries | ❌ | Not hourly |
@@ -358,11 +359,14 @@ at all* (mixed days are classified as snow days only).
 > FM-15 rows would produce large artificial spikes at every integer °C in the
 > temperature histogram.  The processor therefore uses FM-12 rows exclusively
 > for temperature whenever a station files any FM-12 reports, falling back to
-> FM-15 only for stations (like NYC) that have no FM-12 data at all.  This is
-> done automatically — no station-specific configuration is needed.
+> FM-15 / AUTO only for stations (like NYC) that have no FM-12 data at all.
+> FM-15 and AUTO are treated as equivalent for this purpose — the presence of
+> a few supplemental FM-15 rows in otherwise-AUTO years does not cause the
+> AUTO rows to be dropped.  This is done automatically — no station-specific
+> configuration is needed.
 > For **precipitation**, FM-12 rows are used for Heathrow because the `AA1`
 > accumulation field is only populated there on FM-12 rows; NYC's `AA1` data
-> is on FM-15 rows.  Both types are parsed and the results combined.
+> is on FM-15 / AUTO rows.  Both types are parsed and the results combined.
 
 ### Rainy-hour threshold
 
