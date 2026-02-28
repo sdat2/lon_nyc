@@ -71,42 +71,6 @@ more, with a brief London resurgence around 1.5 mm before NYC pulls clear.
 
 ![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
 
-## Long-term trends (2005–2024)
-
-NYC Central Park station data is available in the NOAA ISD from 2005 onwards
-(earlier years exist in the archive but use a different report-type label —
-`AUTO` rather than `FM-15` — and were excluded from the 2015–2024 summaries
-above; they are included here after verification that the data are consistent).
-The figure below shows six annual metrics on a shared year axis.  Each city's
-annual value is plotted as a semi-transparent line with dots; the thick line is
-a 5-year centred rolling mean (±1 std shaded) to reveal any secular drift.
-
-![Long-term trends 2005–2024](plots/long_term_trends.png)
-
-**Observations from the 20-year record:**
-
-* **No significant trend in total precipitation for either city.**  Both
-  London's and NYC's rolling means are essentially flat across 2005–2024,
-  with large year-to-year variability swamping any signal.  NYC's mean sits
-  ~400–600 mm above London's throughout the entire period.
-* **NYC rainy-hours count is higher every single year** and shows no
-  narrowing of the gap over time.  London's count has drifted upward since
-  ~2020 (driven by the switch to higher-frequency FM-15 supplemental
-  reporting at Heathrow) — this is a **data artefact**, not a real
-  climate signal; the total precipitation (panel a) shows no corresponding
-  increase.
-* **Snow days (panel d) confirm no long-term trend** in either city.
-  NYC averages 12–15 snow days/yr in the 2000s and 2010s, dipping to 6–10
-  in the early 2020s; London's record remains flat at 0–4 days throughout.
-* **Sub-zero hours (panel e) show NYC becoming slightly milder** over the
-  period — the 5-year mean fell from ~700–1100 hrs/yr in 2005–2015 to
-  ~400–600 hrs/yr in 2020–2024 — consistent with the broader US trend of
-  warming winters.  London's sub-zero hours are stable at 50–250 hrs/yr.
-* **CDD (panel f) is rising for both cities**, most visibly for London where
-  the rolling mean has climbed from ~0.3 to ~0.7 °C/obs over the 20 years,
-  consistent with European summer warming trends.  NYC's CDD is higher and
-  noisier but also trends upward from ~1.0–1.5 to ~2.0–2.5 °C/obs.
-
 ## Snow vs liquid rain (2015–2024)
 
 The `AA1` precipitation field records **liquid-water equivalent** for all
@@ -213,6 +177,43 @@ and its deviation curve sits higher across the board — reflecting a more
 continental climate with hotter summers and colder winters.
 
 ![Temperature distributions and deviation](plots/temperature_deviation.png)
+
+
+## Long-term trends (2005–2024)
+
+NYC Central Park station data is available in the NOAA ISD from 2005 onwards
+(earlier years exist in the archive but use a different report-type label —
+`AUTO` rather than `FM-15` — and were excluded from the 2015–2024 summaries
+above; they are included here after verification that the data are consistent).
+The figure below shows six annual metrics on a shared year axis.  Each city's
+annual value is plotted as a semi-transparent line with dots; the thick line is
+a 5-year centred rolling mean (±1 std shaded) to reveal any secular drift.
+
+![Long-term trends 2005–2024](plots/long_term_trends.png)
+
+**Observations from the 20-year record:**
+
+* **No significant trend in total precipitation for either city.**  Both
+  London's and NYC's rolling means are essentially flat across 2005–2024,
+  with large year-to-year variability swamping any signal.  NYC's mean sits
+  ~400–600 mm above London's throughout the entire period.
+* **NYC rainy-hours count is higher every single year** and shows no
+  narrowing of the gap over time.  London's count has drifted upward since
+  ~2020 (driven by the switch to higher-frequency FM-15 supplemental
+  reporting at Heathrow) — this is a **data artefact**, not a real
+  climate signal; the total precipitation (panel a) shows no corresponding
+  increase.
+* **Snow days (panel d) confirm no long-term trend** in either city.
+  NYC averages 12–15 snow days/yr in the 2000s and 2010s, dipping to 6–10
+  in the early 2020s; London's record remains flat at 0–4 days throughout.
+* **Sub-zero hours (panel e) show NYC becoming slightly milder** over the
+  period — the 5-year mean fell from ~700–1100 hrs/yr in 2005–2015 to
+  ~400–600 hrs/yr in 2020–2024 — consistent with the broader US trend of
+  warming winters.  London's sub-zero hours are stable at 50–250 hrs/yr.
+* **CDD (panel f) is rising for both cities**, most visibly for London where
+  the rolling mean has climbed from ~0.3 to ~0.7 °C/obs over the 20 years,
+  consistent with European summer warming trends.  NYC's CDD is higher and
+  noisier but also trends upward from ~1.0–1.5 to ~2.0–2.5 °C/obs.
 
 ### Why the stereotype persists
 
