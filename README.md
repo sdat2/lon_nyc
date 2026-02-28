@@ -1,25 +1,79 @@
 # lon_nyc
 [![CI](https://github.com/sdat2/lon_nyc/actions/workflows/ci.yml/badge.svg)](https://github.com/sdat2/lon_nyc/actions/workflows/ci.yml)
 
-Is New York City wetter than London?  The popular image of London as a drizzly,
-rain-soaked city persists despite evidence to the contrary.  This project
-compares hourly precipitation and temperature records for both cities using the
-[NOAA Integrated Surface Database (ISD)](https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database)
-hosted on the public AWS S3 bucket `noaa-global-hourly-pds`.
+## London has better weather than New York City and the data back it up.
 
-**The answer is unambiguous: NYC is substantially wetter and more climatically
-extreme than London.**  Across 2015–2024, NYC received **~55 % more rainfall
-by volume** (avg ~1290 mm/yr vs ~840 mm/yr) and logged roughly **690 rainy
-hours/year versus ~335 for London**, at every precipitation threshold from 0.01
-to 5 mm.  London logs more rainy *days* at low thresholds (its FM-12 reports
-capture many sub-mm drizzle events), but NYC takes over above ~1 mm — and
-leads overwhelmingly on volume and hours.  On temperature the cities have a
-similar heating burden (HDD ~4–5 °C/obs each), but NYC's summers are far
-hotter — cooling degree-days run **3–4× higher** every single year — and its
-winters are genuinely cold, with **400–1100 sub-freezing hours/year versus London's 75–200**.
-London's "drizzly" reputation is a perception artefact
-driven by frequent sub-trace overcast events that account for negligible
-rainfall volume.
+Everyone knows London is grey and drizzly, and NYC is vibrant and sunny.
+That's the story. Here's what the hourly weather records from 2005–2024
+actually show — and why, on balance, London wins.
+
+### 1. London's temperature is almost perfect
+
+London sits in a narrow, stable temperature band centred around 10–11 °C
+year-round. That sounds cold — but 13 °C is [widely cited as the optimal
+temperature for casual running](https://www.runnersworld.com/uk/training/a775718/the-ideal-temperature-for-running/),
+and London is rarely far from it. The hourly temperature histogram is nearly
+Gaussian: a tight, symmetric peak. You can step outside in a thin jumper
+virtually any day of the year and be fine.
+
+NYC offers no such guarantee. Its winters are **genuinely brutal** — 400–1100
+sub-freezing hours per year, compared to London's 75–200. Its summers bake,
+with cooling degree-days **3–4× higher than London's every single year**.
+The temperature deviation curve (below) sits higher for NYC at every point on
+the scale — more discomfort in both directions, simultaneously.
+
+![Temperature distributions and deviation](plots/temperature_deviation.png)
+
+### 2. Yes, NYC gets more sun — but that's not entirely a good thing
+
+NYC gets roughly **1,000 more sunshine hours per year** than London (~2,535
+vs ~1,546). More vitamin D, better Instagram lighting. Acknowledged.
+
+But UV radiation ages skin and raises skin cancer risk roughly in proportion
+to sun exposure. The UK has one of the lowest melanoma rates in the world;
+the US does not. The sun you're not getting in London is not purely a loss.
+
+### 3. The daylight advantage for NYC is real — but small
+
+At 40.7°N vs London's 51.5°N, NYC has more moderate day lengths year-round.
+If you wake up between 06:00 and noon, NYC gives you **at most ~12 minutes
+more usable daylight per day** on average. That's the entire advantage.
+Night owls actually get more usable evening light in London, thanks to its
+long summer evenings.
+
+![Sleep schedule daylight plot](plots/sleep_schedule_daylight.png)
+
+### 4. NYC is dramatically wetter and snowier
+
+NYC receives **~55 % more rainfall by volume** (~1,290 mm/yr vs ~840 mm/yr)
+and logs roughly twice as many rainy hours. It also gets ~13 snow days per
+year on average; London gets one or two. The "drizzly London" reputation is
+a myth: London has more *overcast grey days* but far less actual precipitation.
+
+![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
+
+### The verdict
+
+| | London | NYC |
+|--|--------|-----|
+| Temperature comfort | ✅ Stable, mild, ideal for being outside | ❌ Extreme in both directions |
+| Rain by volume | ✅ Much less | ❌ ~55% more |
+| Snow | ✅ Rare | ❌ ~13 days/yr |
+| Sunshine | ❌ ~1,000 hrs/yr fewer | ✅ Sunnier |
+| Usable daylight gain | — | ✅ ~12 min/day for normal schedules |
+| UV / skin ageing | ✅ Low | ❌ Higher |
+
+London is wetter in reputation only. In reality it is milder, more stable,
+gentler on the skin, and within rounding error on usable daylight for anyone
+with a normal sleep schedule. If you can tolerate grey skies — and you can,
+you get used to them — London's climate is quietly excellent.
+
+---
+
+*The rest of this README documents the data sources, methodology, and full
+results tables for the analysis above.*
+
+---
 
 ## Results (2015–2024)
 
