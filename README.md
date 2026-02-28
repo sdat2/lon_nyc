@@ -70,6 +70,64 @@ more, with a brief London resurgence around 1.5 mm before NYC pulls clear.
 
 ![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
 
+## Snow vs liquid rain (2015–2024)
+
+The `AA1` precipitation field records **liquid-water equivalent** for all
+precipitation phases, so rain and snow both contribute to the depth column.
+Snow and frozen-precipitation events are identified separately from the ISD
+`AW1`/`AW2`/`AW3` automated present-weather fields: any hour carrying a
+condition code in the range 70–79 (continuous or intermittent snow, ice
+pellets, diamond dust) or 83–89 (snow showers, mixed rain/snow, soft hail) is
+flagged as a **snow hour**.  A snow hour must also clear the 0.254 mm
+measurable-precipitation threshold to be counted.  A calendar day is a **snow
+day** if it contains at least one snow hour; a **liquid-rain day** if it
+contains liquid-rain hours *and no snow hours at all* (so mixed days are
+counted only in snow days).
+
+| Year | City | Rainy days | Snow days | Liquid-rain days | Snow hours | Liquid-rain hours |
+|------|------|----------:|----------:|-----------------:|-----------:|------------------:|
+| 2015 | London (Heathrow) | 136 | 1 | 135 | 1 | 277 |
+| 2015 | New York City (Central Park) | 114 | **20** | 94 | **93** | 506 |
+| 2016 | London (Heathrow) | 128 | 4 | 124 | 4 | 269 |
+| 2016 | New York City (Central Park) | 117 | **12** | 105 | **65** | 491 |
+| 2017 | London (Heathrow) | 132 | 3 | 129 | 3 | 265 |
+| 2017 | New York City (Central Park) | 130 | **15** | 115 | **76** | 563 |
+| 2018 | London (Heathrow) | 124 | 1 | 123 | 1 | 269 |
+| 2018 | New York City (Central Park) | 152 | **17** | 135 | **90** | 806 |
+| 2019 | London (Heathrow) | 143 | 2 | 141 | 2 | 311 |
+| 2019 | New York City (Central Park) | 153 | **14** | 139 | **62** | 734 |
+| 2020 | London (Heathrow) | 150 | 1 | 149 | 1 | 313 |
+| 2020 | New York City (Central Park) | 132 | **7** | 125 | **31** | 674 |
+| 2021 | London (Heathrow) | 136 | 1 | 135 | 1 | 287 |
+| 2021 | New York City (Central Park) | 138 | **15** | 123 | **75** | 591 |
+| 2022 | London (Heathrow) | 119 | 0 | 119 | 0 | 342 |
+| 2022 | New York City (Central Park) | 127 | **9** | 118 | **59** | 609 |
+| 2023 | London (Heathrow) | 128 | 1 | 127 | 1 | 525 |
+| 2023 | New York City (Central Park) | 128 | **6** | 122 | **18** | 685 |
+| 2024 | London (Heathrow) | 123 | 0 | 123 | 0 | 477 |
+| 2024 | New York City (Central Park) | 121 | **10** | 111 | **50** | 648 |
+| **Mean** | **London (Heathrow)** | **132** | **1.4** | **130.5** | **1** | **334** |
+| **Mean** | **New York City (Central Park)** | **131** | **12.5** | **118.7** | **62** | **631** |
+
+**Key findings:**
+
+* **NYC gets roughly 9× more snow days than London** (avg 12.5 vs 1.4/yr).
+  London's two snowiest years in this period were 2016 and 2017 (4 and 3 snow
+  days respectively); NYC's quietest was 2023 (6 days, a very mild winter).
+* **Snow hours are ~60× more frequent in NYC** (avg 62 vs 1 hr/yr).  The
+  large ratio relative to snow days reflects NYC's heavier snowfall events —
+  a single nor'easter (e.g. Blizzard Jonas January 2016, Winter Storm Stella
+  March 2017) can account for 20–40 snow hours in a single multi-day event.
+* **London gets more liquid-rain days than NYC** when snow days are set aside
+  (avg 130.5 vs 118.7/yr), consistent with its higher frequency of
+  low-intensity drizzle events noted in the precipitation section above.
+* **NYC's liquid-rain hours still far exceed London's** (avg 631 vs 334/yr),
+  confirming that NYC's dominance in total hourly precipitation is driven by
+  liquid rain, not snow.
+* London had **zero measurable snow hours** in both 2022 and 2024 — years that
+  did not produce a single AW1-coded frozen-precipitation event above the
+  0.254 mm threshold at Heathrow.
+
 ## Temperature (2015–2024)
 
 Temperature is taken from the ISD `TMP` field (see [Methodology](#methodology)).
@@ -142,13 +200,13 @@ pip install -e .
 ## Usage
 
 ```bash
-python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
+python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE] [--snow-plot FILE]
 ```
 
 Or, if installed via `pip install -e .`:
 
 ```bash
-lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
+lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE] [--snow-plot FILE]
 ```
 
 | Argument | Default | Description |
@@ -157,6 +215,7 @@ lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 | `--end`   | `2025` | Last year to fetch (inclusive) |
 | `--plot FILE` | *(none)* | Save a rainfall threshold-sensitivity plot to *FILE* (PNG) |
 | `--temp-plot FILE` | *(none)* | Save a temperature histogram + deviation plot to *FILE* (PNG) |
+| `--snow-plot FILE` | *(none)* | Save a snow vs liquid-rain 2×2 stacked-bar figure to *FILE* (PNG) |
 | `--no-cache` | *(off)* | Disable on-disk CSV cache (re-downloads from S3) |
 
 ## Example
@@ -164,19 +223,20 @@ lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
 ```bash
 python -m lon_nyc --start 2015 --end 2024 \
     --plot plots/threshold_sensitivity.png \
-    --temp-plot plots/temperature_panels.png
+    --temp-plot plots/temperature_panels.png \
+    --snow-plot plots/snow_vs_rain.png
 ```
 
 Sample output:
 
 ```
-======================Annual Precipitation Summary======================
+================================Annual Precipitation Summary================================
 Years 2015–2024 | threshold: >0.254 mm
 
-Year   City                             Total (mm)  Rainy hrs  Rainy days
--------------------------------------------------------------------------
-2015   London (Heathrow)                     819.8        278         136
-2015   New York City (Central Park)         1048.8        599         114
+Year   City                             Total (mm)  Rainy hrs  Rainy days  Snow hrs  Snow days  Rain hrs  Rain days
+--------------------------------------------------------------------------------------------------------------------
+2015   London (Heathrow)                     819.8        278         136         1          1       277        135
+2015   New York City (Central Park)         1048.8        599         114        93         20       506         94
 ...
 
 ==============================Annual Temperature Summary==============================
@@ -217,12 +277,32 @@ coded `9999` or `+9999` and become `NaN`.
 
 `AA1` always reports **liquid-water equivalent** regardless of precipitation
 phase, so rain, snow, sleet, and freezing rain all contribute to the same
-depth column.  Inspection of `AW1` (automated present-weather) codes confirms
-that NYC snow events (condition code `1` or AW1 70–79) appear as positive
-depths in `AA1` at the same liquid-equivalent rate — there is no snow/rain
-asymmetry between the two cities.
+depth column.  Snow and frozen events appear as positive depths in `AA1` at the
+same liquid-equivalent rate — there is no snow/rain asymmetry between the two
+cities in the depth field.
 
-### Report-type filter
+### Snow / frozen-precipitation detection
+
+Precipitation phase is determined from the ISD automated present-weather fields
+`AW1`, `AW2`, and `AW3`.  Each field encodes a single weather phenomenon as
+`condition_code,quality_code`.  An observation hour is flagged as **frozen
+precipitation** when any of the available `AWn` columns carries a code from the
+following ranges (ISD Section 7.1):
+
+| Code range | Phenomenon |
+|-----------|-----------|
+| 70–75 | Continuous or intermittent snow (light → heavy) |
+| 76–79 | Diamond dust, snow grains, ice crystals, ice pellets (sleet) |
+| 83–84 | Moderate/heavy shower of mixed rain and snow |
+| 85–86 | Light or moderate/heavy snow showers |
+| 87–89 | Soft hail, ice pellet showers, small hail |
+
+A row is a **snow hour** only when it also clears the 0.254 mm measurable-
+precipitation threshold.  A day is a **snow day** if it contains at least one
+snow hour; a **liquid-rain day** if it has liquid-rain hours *and no snow hours
+at all* (mixed days are classified as snow days only).
+
+
 
 | Code | Name | Kept? | Reason |
 |------|------|-------|--------|
@@ -259,7 +339,10 @@ cities with published climate-table conventions.
 ### Rainy-day definition
 
 A calendar day is **rainy** if it contains at least one rainy hour (i.e.
-at least one hour with liquid-equivalent depth > 0.254 mm).
+at least one hour with liquid-equivalent depth > 0.254 mm).  Rainy days
+decompose into **snow days** (at least one snow hour that day) and **liquid-rain
+days** (one or more liquid-rain hours, no snow hours); the two categories are
+mutually exclusive so they sum to the total rainy-day count.
 
 ### Temperature discomfort
 

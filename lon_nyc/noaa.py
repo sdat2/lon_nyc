@@ -196,6 +196,47 @@ def download_and_concatenate_s3_csvs(
     return combined
 
 
+def parse_aw_snow_flag(df: pd.DataFrame) -> pd.Series:
+    """Return a boolean Series indicating whether each row carries a snow/frozen code.
+
+    The ISD automated present-weather fields ``AW1``, ``AW2``, and ``AW3``
+    (when present) each encode a single weather phenomenon as::
+
+        condition_code,quality_code
+
+    A row is considered a **snow hour** when *any* of the available ``AWn``
+    columns contains a condition code that is a member of
+    :data:`lon_nyc.config.AW_SNOW_CODES`.  The full set of frozen-precip codes
+    is documented in that constant (broadly: ISD codes 70–79 for continuous
+    snow / ice pellets and 83–89 for snow showers and mixed rain/snow).
+
+    Parameters
+    ----------
+    df:
+        Raw or processed ISD DataFrame that may contain ``AW1``, ``AW2``,
+        and/or ``AW3`` columns.
+
+    Returns
+    -------
+    pd.Series
+        Boolean Series (same index as *df*), ``True`` where frozen precipitation
+        is indicated by at least one ``AWn`` field.
+    """
+    snow_flag = pd.Series(False, index=df.index, dtype=bool)
+    for col in cfg.AW_COLUMNS:
+        if col not in df.columns:
+            continue
+        # Extract the leading condition code (first comma-delimited sub-field).
+        # .dropna() gives a narrower Series, so we use fillna("") to keep the
+        # full index before calling .str — this avoids the MultiIndex / dtype error
+        # that arises when the column is entirely NaN.
+        raw_col = df[col].fillna("")
+        codes = raw_col.str.split(",").str[0].str.strip()
+        is_snow = codes.isin(cfg.AW_SNOW_CODES)
+        snow_flag = snow_flag | is_snow
+    return snow_flag
+
+
 def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
     """Extract precipitation depth (mm) from the ISD ``AA1`` compound field.
 
@@ -259,7 +300,9 @@ def process_precipitation_data(
     -------
     pd.DataFrame
         Processed DataFrame indexed by ``DATE`` (UTC datetime), with at least
-        the ``precipitation_mm`` column.
+        the ``precipitation_mm`` column and an ``is_snow`` boolean column
+        indicating whether the observation hour carried a frozen-precipitation
+        weather code (AW1/AW2/AW3 codes in :data:`lon_nyc.config.AW_SNOW_CODES`).
     """
     if report_types is None:
         report_types = HOURLY_REPORT_TYPES
@@ -288,6 +331,11 @@ def process_precipitation_data(
         )
         df["precipitation_mm"] = np.nan
 
+    # --- Parse snow flag from automated present-weather fields (AW1/AW2/AW3) ---
+    # An hour is flagged as snow/frozen when any AWn field carries a code from
+    # cfg.AW_SNOW_CODES (ISD codes 70–79, 83–89).
+    df["is_snow"] = parse_aw_snow_flag(df)
+
     # --- Filter by report type ---
     if report_types and "REPORT_TYPE" in df.columns:
         before = len(df)
@@ -308,7 +356,7 @@ def process_precipitation_data(
     df.sort_index(inplace=True)
 
     # --- Select output columns ---
-    keep = ["precipitation_mm"]
+    keep = ["precipitation_mm", "is_snow"]
     for col in ("STATION", "NAME", "REPORT_TYPE", "SOURCE"):
         if col in df.columns:
             keep.insert(0, col)

@@ -2,16 +2,17 @@
 
 Run with::
 
-    python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
+    python -m lon_nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE] [--snow-plot FILE]
 
 or, if installed::
 
-    lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE]
+    lon-nyc [--start YEAR] [--end YEAR] [--plot FILE] [--temp-plot FILE] [--snow-plot FILE]
 
 Optional plot flags:
 
 * ``--plot FILE``      – rainfall threshold-sensitivity two-panel plot (PNG)
 * ``--temp-plot FILE`` – temperature histogram + mean-deviation two-panel plot (PNG)
+* ``--snow-plot FILE`` – snow vs liquid-rain stacked-bar 2×2 figure (PNG)
 """
 
 from __future__ import annotations
@@ -88,6 +89,15 @@ def main(argv: list[str] | None = None) -> None:
             "(e.g. temperature_panels.png). If omitted, no plot is produced."
         ),
     )
+    parser.add_argument(
+        "--snow-plot",
+        metavar="FILE",
+        default=None,
+        help=(
+            "Generate a snow vs liquid-rain 2×2 stacked-bar figure and save it to FILE "
+            "(e.g. snow_vs_rain.png). If omitted, no plot is produced."
+        ),
+    )
     args = parser.parse_args(argv)
 
     s3 = noaa.make_s3_client()
@@ -127,12 +137,17 @@ def main(argv: list[str] | None = None) -> None:
 
     # ── Print precipitation table ─────────────────────────────────────────────
     print(
-        f"\n{'Annual Precipitation Summary':=^72}\n"
+        f"\n{'Annual Precipitation Summary':=^96}\n"
         f"{'Years':>4} {args.start}–{args.end} | "
         f"threshold: >{config.RAINY_THRESHOLD_MM} mm\n"
     )
 
-    header = f"{'Year':<6} {'City':<32} {'Total (mm)':>10} {'Rainy hrs':>10} {'Rainy days':>11}"
+    header = (
+        f"{'Year':<6} {'City':<32} {'Total (mm)':>10} "
+        f"{'Rainy hrs':>10} {'Rainy days':>11} "
+        f"{'Snow hrs':>9} {'Snow days':>10} "
+        f"{'Rain hrs':>9} {'Rain days':>10}"
+    )
     print(header)
     print("-" * len(header))
 
@@ -141,7 +156,11 @@ def main(argv: list[str] | None = None) -> None:
             f"{int(row['year']):<6} {row['label']:<32} "
             f"{row['total_precip_mm']:>10.1f} "
             f"{int(row['rainy_hours']):>10} "
-            f"{int(row['rainy_days']):>11}"
+            f"{int(row['rainy_days']):>11} "
+            f"{int(row['snow_hours']):>9} "
+            f"{int(row['snow_days']):>10} "
+            f"{int(row['liquid_rain_hours']):>9} "
+            f"{int(row['liquid_rain_days']):>10}"
         )
         if row.name < len(combined) - 1 and combined.loc[row.name + 1, "year"] != row["year"]:
             print()
@@ -207,6 +226,18 @@ def main(argv: list[str] | None = None) -> None:
             title_years=(args.start, args.end),
         )
         print(f"Temperature histogram & deviation plot saved to: {args.temp_plot}")
+
+    # ── Snow vs rain plot ────────────────────────────────────────────────────
+    if args.snow_plot:
+        print(f"\nGenerating snow vs rain plot … ", end="", flush=True)
+        plots.plot_snow_vs_rain(
+            frames,
+            output_path=args.snow_plot,
+            start_year=args.start,
+            end_year=args.end,
+        )
+        print("done.")
+        print(f"Snow vs rain plot saved to: {args.snow_plot}")
 
 
 if __name__ == "__main__":

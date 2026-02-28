@@ -383,3 +383,117 @@ def test_process_temperature_fm12_priority_does_not_affect_nyc():
     assert len(df) == 2
     assert pytest.approx(df["temp_c"].iloc[0]) == 22.8
     assert pytest.approx(df["temp_c"].iloc[1]) == 23.3
+
+
+# ---------------------------------------------------------------------------
+# parse_aw_snow_flag
+# ---------------------------------------------------------------------------
+
+
+def _make_aw_df(**kwargs) -> pd.DataFrame:
+    """Build a minimal DataFrame with AW1 (and optionally AW2/AW3) columns."""
+    defaults = {
+        "AW1": [np.nan],
+    }
+    defaults.update(kwargs)
+    return pd.DataFrame(defaults)
+
+
+def test_parse_aw_snow_flag_light_snow():
+    """AW1 code 71 (continuous light snow) must be flagged as snow."""
+    df = _make_aw_df(AW1=["71,5"])
+    result = noaa.parse_aw_snow_flag(df)
+    assert result.iloc[0] is True or result.iloc[0] == True  # noqa: E712
+
+
+def test_parse_aw_snow_flag_moderate_snow():
+    """AW1 code 73 (continuous moderate snow) must be flagged."""
+    df = _make_aw_df(AW1=["73,5"])
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is True
+
+
+def test_parse_aw_snow_flag_snow_shower():
+    """AW1 code 85 (light snow showers) must be flagged."""
+    df = _make_aw_df(AW1=["85,5"])
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is True
+
+
+def test_parse_aw_snow_flag_ice_pellets():
+    """AW1 code 79 (ice pellets / sleet) must be flagged."""
+    df = _make_aw_df(AW1=["79,5"])
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is True
+
+
+def test_parse_aw_snow_flag_rain_not_flagged():
+    """AW1 code 61 (continuous light rain) must NOT be flagged as snow."""
+    df = _make_aw_df(AW1=["61,5"])
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is False
+
+
+def test_parse_aw_snow_flag_missing_aw1_not_flagged():
+    """A NaN AW1 must not be flagged."""
+    df = _make_aw_df(AW1=[np.nan])
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is False
+
+
+def test_parse_aw_snow_flag_uses_aw2_when_aw1_is_rain():
+    """Snow flag should be True when AW1 is rain (61) but AW2 carries snow (71)."""
+    df = pd.DataFrame({"AW1": ["61,5"], "AW2": ["71,5"]})
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is True
+
+
+def test_parse_aw_snow_flag_no_aw_columns_returns_false():
+    """A DataFrame with no AWn columns must return all-False."""
+    df = pd.DataFrame({"DATE": ["2023-01-01T00:00:00"]})
+    result = noaa.parse_aw_snow_flag(df)
+    assert bool(result.iloc[0]) is False
+
+
+def test_parse_aw_snow_flag_mixed_rows():
+    """Vectorised operation across a mixed DataFrame."""
+    df = pd.DataFrame({
+        "AW1": ["61,5", "71,5", np.nan, "72,6", "10,5"],
+    })
+    result = noaa.parse_aw_snow_flag(df)
+    expected = [False, True, False, True, False]
+    assert list(result) == expected
+
+
+# ---------------------------------------------------------------------------
+# process_precipitation_data — is_snow column
+# ---------------------------------------------------------------------------
+
+
+def test_process_precipitation_includes_is_snow_column():
+    """process_precipitation_data must return an is_snow boolean column."""
+    raw = _make_raw_df(AW1=["71,5", "61,5"])
+    df = noaa.process_precipitation_data(raw, report_types=[])
+    assert "is_snow" in df.columns
+
+
+def test_process_precipitation_is_snow_true_for_snow_code():
+    """Row with AW1=71 (light snow) must have is_snow=True."""
+    raw = _make_raw_df(
+        DATE=["2023-01-01T10:00:00", "2023-01-01T11:00:00"],
+        AA1=["0001,0050,C,5", "0001,0010,C,5"],
+        AW1=["71,5", "61,5"],
+        REPORT_TYPE=["FM-15", "FM-15"],
+    )
+    df = noaa.process_precipitation_data(raw, report_types=[])
+    assert bool(df["is_snow"].iloc[0]) is True
+    assert bool(df["is_snow"].iloc[1]) is False
+
+
+def test_process_precipitation_is_snow_false_when_no_aw_columns():
+    """When AW columns are absent the is_snow column must default to False."""
+    raw = _make_raw_df()
+    raw = raw.drop(columns=[c for c in raw.columns if c.startswith("AW")], errors="ignore")
+    df = noaa.process_precipitation_data(raw, report_types=[])
+    assert "is_snow" in df.columns
+    assert bool(df["is_snow"].all()) is False

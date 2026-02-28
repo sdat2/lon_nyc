@@ -104,14 +104,20 @@ def annual_summary(
 
         * ``label``
         * ``year``
-        * ``total_precip_mm``  – annual rainfall in mm
-        * ``rainy_hours``      – hours with measurable precipitation
-        * ``rainy_days``       – calendar days containing at least one rainy hour
+        * ``total_precip_mm``   – annual rainfall in mm
+        * ``rainy_hours``       – hours with measurable precipitation
+        * ``rainy_days``        – calendar days containing at least one rainy hour
+        * ``snow_hours``        – rainy hours also flagged as frozen (``is_snow=True``)
+        * ``snow_days``         – calendar days with at least one snow hour
+        * ``liquid_rain_hours`` – rainy hours that are *not* flagged as snow
+        * ``liquid_rain_days``  – calendar days with at least one liquid-rain hour
+                                  but *no* snow hours on the same day
     """
     if processed_df.empty or "precipitation_mm" not in processed_df.columns:
         logger.warning("No precipitation data available for '%s'.", label)
         return pd.DataFrame(
-            columns=["label", "year", "total_precip_mm", "rainy_hours", "rainy_days"]
+            columns=["label", "year", "total_precip_mm", "rainy_hours", "rainy_days",
+                     "snow_hours", "snow_days", "liquid_rain_hours", "liquid_rain_days"]
         )
 
     df = processed_df[["precipitation_mm"]].copy()
@@ -119,7 +125,8 @@ def annual_summary(
 
     if df.empty:
         return pd.DataFrame(
-            columns=["label", "year", "total_precip_mm", "rainy_hours", "rainy_days"]
+            columns=["label", "year", "total_precip_mm", "rainy_hours", "rainy_days",
+                     "snow_hours", "snow_days", "liquid_rain_hours", "liquid_rain_days"]
         )
 
     dti = pd.DatetimeIndex(df.index)
@@ -128,11 +135,24 @@ def annual_summary(
     # Normalise to date for day-level aggregation
     df["date"] = dti.normalize()
 
+    # Propagate snow flag if available; default to False when column is absent
+    # (e.g. when processing legacy DataFrames that pre-date the snow feature).
+    if "is_snow" in processed_df.columns:
+        df["is_snow"] = processed_df["is_snow"].reindex(df.index, fill_value=False)
+    else:
+        df["is_snow"] = False
+
+    # A snow hour requires measurable precipitation AND a frozen-precip weather code.
+    df["is_snow_hour"] = df["is_rainy_hour"] & df["is_snow"]
+    df["is_liquid_rain_hour"] = df["is_rainy_hour"] & ~df["is_snow"]
+
     yearly = (
         df.groupby("year")
         .agg(
             total_precip_mm=("precipitation_mm", "sum"),
             rainy_hours=("is_rainy_hour", "sum"),
+            snow_hours=("is_snow_hour", "sum"),
+            liquid_rain_hours=("is_liquid_rain_hour", "sum"),
         )
         .reset_index()
     )
@@ -146,11 +166,59 @@ def annual_summary(
         .reset_index()
     )
 
+    # Snow days: distinct dates with at least one snow hour
+    snow_days_per_year = (
+        df[df["is_snow_hour"]]
+        .groupby("year")["date"]
+        .nunique()
+        .rename("snow_days")
+        .reset_index()
+    )
+
+    # Liquid-rain days: dates that have at least one liquid-rain hour AND no snow
+    # hours at all (i.e. entirely non-frozen precipitation days).
+    dates_with_snow = (
+        df[df["is_snow_hour"]]
+        .groupby("year")["date"]
+        .apply(set)
+        .rename("snow_date_set")
+        .reset_index()
+    )
+    liquid_rain_hour_dates = df[df["is_liquid_rain_hour"]][["year", "date"]].copy()
+    # Merge in the set of snowy dates to exclude mixed days
+    liquid_rain_hour_dates = liquid_rain_hour_dates.merge(
+        dates_with_snow, on="year", how="left"
+    )
+    liquid_rain_hour_dates["snow_date_set"] = liquid_rain_hour_dates[
+        "snow_date_set"
+    ].apply(lambda x: x if isinstance(x, set) else set())
+    # Keep only dates where the day had no snow at all
+    liquid_rain_hour_dates = liquid_rain_hour_dates[
+        liquid_rain_hour_dates.apply(
+            lambda r: r["date"] not in r["snow_date_set"], axis=1
+        )
+    ]
+    liquid_rain_days_per_year = (
+        liquid_rain_hour_dates.groupby("year")["date"]
+        .nunique()
+        .rename("liquid_rain_days")
+        .reset_index()
+    )
+
     result = yearly.merge(rainy_days_per_year, on="year", how="left")
-    result["rainy_days"] = result["rainy_days"].fillna(0).astype(int)
-    result["rainy_hours"] = result["rainy_hours"].astype(int)
+    result = result.merge(snow_days_per_year, on="year", how="left")
+    result = result.merge(liquid_rain_days_per_year, on="year", how="left")
+
+    for col in ("rainy_days", "snow_days", "liquid_rain_days"):
+        result[col] = result[col].fillna(0).astype(int)
+    for col in ("rainy_hours", "snow_hours", "liquid_rain_hours"):
+        result[col] = result[col].astype(int)
+
     result["label"] = label
-    result = result[["label", "year", "total_precip_mm", "rainy_hours", "rainy_days"]]
+    result = result[
+        ["label", "year", "total_precip_mm", "rainy_hours", "rainy_days",
+         "snow_hours", "snow_days", "liquid_rain_hours", "liquid_rain_days"]
+    ]
 
     logger.info("Annual summary for '%s': %d years.", label, len(result))
     return result

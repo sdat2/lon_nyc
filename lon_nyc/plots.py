@@ -1,11 +1,13 @@
 """Plotting helpers for lon_nyc analysis results.
 
-Two figures are currently supported:
+Three figures are currently supported:
 
 * :func:`plot_threshold_sensitivity` — two-panel rainfall threshold sweep
   (rainy hours / rainy days vs threshold mm, log scale).
 * :func:`plot_temperature_hist_and_deviation` — side-by-side temperature
   density histogram (a) and mean absolute deviation vs chosen temperature (b).
+* :func:`plot_snow_vs_rain` — stacked-bar chart comparing snow days / hours
+  with liquid-rain days / hours for each city across years.
 
 London is always drawn in red (``tab:red``), NYC in blue (``tab:blue``).
 """
@@ -206,5 +208,168 @@ def plot_temperature_hist_and_deviation(
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(out), dpi=150)
         logger.info("Saved temperature panels to %s", out)
+
+    return fig
+
+
+def plot_snow_vs_rain(
+    annual_frames: list[pd.DataFrame],
+    output_path: str | Path | None = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
+) -> "Figure":  # type: ignore[name-defined]
+    """Four-panel stacked-bar figure comparing snow and liquid-rain statistics.
+
+    The figure has four panels arranged in a 2 × 2 grid:
+
+    * **(a) Days per year** – stacked bars: liquid-rain days (solid) and snow
+      days (hatched) for each city.  A mixed day (both liquid and snow hours)
+      counts only in *snow days*, so the two categories are mutually exclusive.
+    * **(b) Hours per year** – same stacking for liquid-rain hours vs snow hours.
+    * **(c) Mean days per year** (single grouped bar per city) – average
+      liquid-rain days and snow days across all years in the dataset.
+    * **(d) Mean hours per year** (single grouped bar per city) – same for hours.
+
+    London is drawn in red, NYC in blue, consistent with the rest of the module.
+
+    Parameters
+    ----------
+    annual_frames:
+        List of DataFrames as returned by
+        :func:`lon_nyc.analysis.annual_summary`, one per city.  Each must have
+        columns ``label``, ``year``, ``snow_days``, ``liquid_rain_days``,
+        ``snow_hours``, ``liquid_rain_hours``.
+    output_path:
+        If given, the figure is saved here (PNG at 150 dpi).
+    start_year, end_year:
+        Used only in the figure title to indicate the data range.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
+    ax_days, ax_hours = axes[0]
+    ax_mean_days, ax_mean_hours = axes[1]
+
+    # Width for grouped bars — each city gets its own x position
+    bar_width = 0.35
+
+    # ── Per-year time-series stacked bars (panels a & b) ─────────────────────
+    for df in annual_frames:
+        if df.empty:
+            continue
+        label = df["label"].iloc[0]
+        colour = _CITY_COLOURS.get(label, "black")
+        years = df["year"].to_numpy()
+
+        for ax, liq_col, snow_col, ylabel in [
+            (ax_days, "liquid_rain_days", "snow_days", "Days per year"),
+            (ax_hours, "liquid_rain_hours", "snow_hours", "Hours per year"),
+        ]:
+            liq = df[liq_col].to_numpy()
+            snow = df[snow_col].to_numpy()
+            ax.bar(years, liq, label=f"{label} – liquid rain", color=colour, alpha=0.75)
+            ax.bar(
+                years, snow, bottom=liq,
+                label=f"{label} – snow", color=colour, alpha=0.95,
+                hatch="//", edgecolor="white", linewidth=0.5,
+            )
+            ax.set_ylabel(ylabel, fontsize=10)
+            ax.set_xlabel("Year", fontsize=10)
+            ax.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.7)
+            ax.spines[["top", "right"]].set_visible(False)
+
+    # Add subtitles
+    ax_days.set_title("(a) Precipitation days", fontsize=11)
+    ax_hours.set_title("(b) Precipitation hours", fontsize=11)
+
+    # ── Mean across years (panels c & d) ─────────────────────────────────────
+    city_labels: list[str] = []
+    for df in annual_frames:
+        if df.empty:
+            continue
+        city_labels.append(df["label"].iloc[0])
+
+    x_pos = np.arange(len(city_labels))
+
+    for ax, liq_col, snow_col, ylabel in [
+        (ax_mean_days, "liquid_rain_days", "snow_days", "Mean days per year"),
+        (ax_mean_hours, "liquid_rain_hours", "snow_hours", "Mean hours per year"),
+    ]:
+        liq_means = []
+        snow_means = []
+        colours = []
+        for df in annual_frames:
+            if df.empty:
+                liq_means.append(0.0)
+                snow_means.append(0.0)
+                colours.append("gray")
+                continue
+            label = df["label"].iloc[0]
+            colours.append(_CITY_COLOURS.get(label, "black"))
+            liq_means.append(float(df[liq_col].mean()))
+            snow_means.append(float(df[snow_col].mean()))
+
+        liq_arr = np.array(liq_means)
+        snow_arr = np.array(snow_means)
+
+        bars_liq = ax.bar(
+            x_pos, liq_arr, width=bar_width * 1.8,
+            color=colours, alpha=0.75,
+            label="Liquid rain",
+        )
+        bars_snow = ax.bar(
+            x_pos, snow_arr, bottom=liq_arr, width=bar_width * 1.8,
+            color=colours, alpha=0.95,
+            hatch="//", edgecolor="white", linewidth=0.5,
+            label="Snow",
+        )
+
+        # Annotate each bar segment with its value
+        for i, (liq, snow) in enumerate(zip(liq_arr, snow_arr)):
+            ax.text(x_pos[i], liq / 2, f"{liq:.0f}", ha="center", va="center",
+                    fontsize=9, color="white", fontweight="bold")
+            if snow > 0:
+                ax.text(x_pos[i], liq + snow / 2, f"{snow:.0f}", ha="center",
+                        va="center", fontsize=9, color="white", fontweight="bold")
+
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(city_labels, fontsize=9)
+        ax.set_ylabel(ylabel, fontsize=10)
+        ax.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.7)
+        ax.spines[["top", "right"]].set_visible(False)
+
+    ax_mean_days.set_title("(c) Mean precipitation days", fontsize=11)
+    ax_mean_hours.set_title("(d) Mean precipitation hours", fontsize=11)
+
+    # Shared legend for panels a & b
+    handles_a, labels_a = ax_days.get_legend_handles_labels()
+    ax_days.legend(handles_a, labels_a, fontsize=8, framealpha=0.9, loc="upper right")
+
+    # Shared legend for panels c & d showing hatch convention
+    import matplotlib.patches as mpatches
+
+    liq_patch = mpatches.Patch(facecolor="gray", alpha=0.75, label="Liquid rain")
+    snow_patch = mpatches.Patch(
+        facecolor="gray", alpha=0.95, hatch="//",
+        edgecolor="white", label="Snow / frozen",
+    )
+    ax_mean_days.legend(handles=[liq_patch, snow_patch], fontsize=9, framealpha=0.9)
+
+    year_range = ""
+    if start_year is not None and end_year is not None:
+        year_range = f"  ({start_year}–{end_year})"
+    fig.suptitle(
+        f"Snow vs liquid-rain precipitation{year_range}",
+        fontsize=13,
+        fontweight="bold",
+    )
+
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), dpi=150)
+        logger.info("Saved snow vs rain plot to %s", out)
 
     return fig
