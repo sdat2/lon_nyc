@@ -10,29 +10,33 @@ hosted on the public AWS S3 bucket `noaa-global-hourly-pds`.
 extreme than London.**  Across 2015–2024, NYC received **~55 % more rainfall
 by volume** (avg ~1290 mm/yr vs ~840 mm/yr) and logged roughly **690 rainy
 hours/year versus ~335 for London**, at every precipitation threshold from 0.01
-to 5 mm.  On temperature the cities have a similar heating burden (HDD
-~4–5 °C/obs each), but NYC's summers are far hotter — cooling degree-days run
-**3–4× higher** every single year — and its winters are genuinely cold, with
-**400–1100 sub-freezing hours/year versus London's 75–200**.  London's
-"drizzly" reputation is a perception artefact driven by frequent sub-trace
-overcast events that do not register as measurable precipitation.
+to 5 mm.  London logs more rainy *days* at low thresholds (its FM-12 reports
+capture many sub-mm drizzle events), but NYC takes over above ~1 mm — and
+leads overwhelmingly on volume and hours.  On temperature the cities have a
+similar heating burden (HDD ~4–5 °C/obs each), but NYC's summers are far
+hotter — cooling degree-days run **3–4× higher** every single year — and its
+winters are genuinely cold, with **400–1100 sub-freezing hours/year versus London's 75–200**.
+London's "drizzly" reputation is a perception artefact
+driven by frequent sub-trace overcast events that account for negligible
+rainfall volume.
 
 ## Results (2015–2024)
 
-> **NYC leads on every dimension.** More total rainfall, more rainy hours, and
-> comparable or greater numbers of rainy days across all ten years — robust to
-> any choice of measurement threshold.
+> **NYC leads on total rainfall and rainy hours every year.** On rainy *days*,
+> London leads in 5 of 10 years at the standard 0.254 mm threshold — consistent
+> with its many low-intensity events — though NYC takes over as the threshold
+> rises above ~1 mm.
 
 Annual totals for 2015–2024 (2025 excluded as a partial year):
 
 | Year | City | Total (mm) | Rainy hours | Rainy days |
 |------|------|----------:|------------:|-----------:|
-| 2015 | London (Heathrow) | 820 | 278 | 136 |
-| 2015 | New York City (Central Park) | **1049** | **599** | **114** |
-| 2016 | London (Heathrow) | 856 | 273 | 128 |
-| 2016 | New York City (Central Park) | **1071** | **556** | **117** |
-| 2017 | London (Heathrow) | 846 | 268 | 132 |
-| 2017 | New York City (Central Park) | **1158** | **639** | **130** |
+| 2015 | London (Heathrow) | 820 | 278 | **136** |
+| 2015 | New York City (Central Park) | **1049** | **599** | 114 |
+| 2016 | London (Heathrow) | 856 | 273 | **128** |
+| 2016 | New York City (Central Park) | **1071** | **556** | 117 |
+| 2017 | London (Heathrow) | 846 | 268 | **132** |
+| 2017 | New York City (Central Park) | **1158** | **639** | 130 |
 | 2018 | London (Heathrow) | 868 | 270 | 124 |
 | 2018 | New York City (Central Park) | **1658** | **896** | **152** |
 | 2019 | London (Heathrow) | 945 | 313 | 143 |
@@ -44,22 +48,25 @@ Annual totals for 2015–2024 (2025 excluded as a partial year):
 | 2022 | London (Heathrow) | 684 | 342 | 119 |
 | 2022 | New York City (Central Park) | **1186** | **668** | **127** |
 | 2023 | London (Heathrow) | 737 | 526 | 128 |
-| 2023 | New York City (Central Park) | **1523** | **703** | **128** |
-| 2024 | London (Heathrow) | 680 | 477 | 123 |
-| 2024 | New York City (Central Park) | **1178** | **698** | **121** |
+| 2023 | New York City (Central Park) | **1523** | **703** | 128 |
+| 2024 | London (Heathrow) | 680 | 477 | **123** |
+| 2024 | New York City (Central Park) | **1178** | **698** | 121 |
 
-A "rainy hour / day" uses the standard WMO threshold of **> 0.254 mm
+A "rainy hour or rainy day" uses the standard WMO threshold of **> 0.254 mm
 (0.01 inch)** of liquid-equivalent precipitation.
 
-**NYC leads on every dimension across all five years** — more total rainfall,
-more rainy hours, and comparable or greater numbers of rainy days.  London's
-"drizzly" reputation comes from frequent low-intensity events (< 0.254 mm)
-that do not register as measurable precipitation under the standard definition.
+**NYC leads on total rainfall and rainy hours across all ten years** — more
+total rainfall and more rainy hours every single year.  On rainy days London
+leads slightly at the standard 0.254 mm threshold (see the threshold
+sensitivity plot below).  London's high day counts come from frequent
+low-intensity events (< 0.254 mm) that account for negligible volume.
 
 The figure below sweeps the threshold continuously (log scale, 0.01–5 mm) to
-confirm the gap is not an artefact of the 0.254 mm choice.  NYC leads on rainy
-hours across the entire range; London briefly overtakes on rainy *days* only
-below ~0.1 mm, where its sub-trace drizzle events inflate the count.
+confirm that NYC's dominance on total volume and rainy hours is real.  The
+rainy-days panel tells a more nuanced story: London leads at every threshold
+below ~1 mm (its many low-intensity events accumulate into more measurable
+days), NYC takes over above ~1 mm where individual event intensity matters
+more, with a brief London resurgence around 1.5 mm before NYC pulls clear.
 
 ![Rainfall threshold sensitivity](plots/threshold_sensitivity.png)
 
@@ -471,8 +478,8 @@ wake-up time, usable daylight is the overlap of the 16-hour waking window with
 
 ### Key findings
 
-1. **For typical sleep schedules (wake 06:00–12:00), the difference is
-   negligible.** NYC leads by at most ~0.2 h/day — barely 12 minutes.
+1. **For typical sleep schedules (wake 06:00–12:00), the difference is negligible.**
+   NYC leads by at most ~0.2 h/day — barely 12 minutes.
    Waking anywhere between 08:00 and noon gives almost identical usable
    daylight in both cities.
 
