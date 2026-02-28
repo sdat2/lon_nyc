@@ -51,16 +51,20 @@ S3_BUCKET: str = "noaa-global-hourly-pds"
 # FM-12 = SYNOP (WMO surface synoptic observation, used at many non-US stations
 # such as London Heathrow, where AA1 precipitation data is reported on FM-12
 # rows rather than FM-15 rows).
+# AUTO  = ASOS automated observation (label used by Central Park / NYC prior to
+# ~2012 before the ISD re-encoded these records as FM-15).  The data format and
+# observation frequency are identical to FM-15 (hourly, ":51" timestamps), so
+# AUTO is treated as equivalent to FM-15 for both precipitation and temperature.
 #
 # ORDER MATTERS for temperature deduplication: when both FM-12 and FM-15 rows
 # exist at the same timestamp, process_temperature_data keeps the type listed
 # FIRST.  FM-12 is listed first because Heathrow's FM-12 (SYNOP) rows carry
 # 0.1 °C temperature resolution, whereas its FM-15 (METAR) rows are stored at
 # whole-degree resolution in ISD — producing large artificial spikes in the
-# histogram at every integer °C.  NYC only files FM-15, so the ordering has no
-# effect there.  For precipitation the order is irrelevant because the two
-# report types are kept separately before deduplication by timestamp.
-HOURLY_REPORT_TYPES: list[str] = ["FM-12", "FM-15"]
+# histogram at every integer °C.  NYC only files FM-15/AUTO, so the ordering
+# has no effect there.  For precipitation the order is irrelevant because the
+# two report types are kept separately before deduplication by timestamp.
+HOURLY_REPORT_TYPES: list[str] = ["FM-12", "FM-15", "AUTO "]
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +241,7 @@ def parse_aw_snow_flag(df: pd.DataFrame) -> pd.Series:
     return snow_flag
 
 
-def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
+def parse_aa1_depth_mm(series: pd.Series, max_period_hours: int | None = None) -> pd.Series:
     """Extract precipitation depth (mm) from the ISD ``AA1`` compound field.
 
     The ``AA1`` field has the form::
@@ -253,6 +257,14 @@ def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
     ----------
     series:
         Raw string values of the ``AA1`` column.
+    max_period_hours:
+        If given, rows whose accumulation period (first sub-field) is *greater*
+        than this value are returned as NaN and ignored.  This is used to
+        suppress the 3 h / 6 h / 24 h catch-up summary records that ASOS
+        stations (report type ``AUTO`` / ``FM-15``) emit alongside their
+        standard 1-hour readings, which would otherwise cause double-counting.
+        London Heathrow FM-12 (SYNOP) uses 6 h and 12 h periods as its normal
+        reporting interval, so this filter is **not** applied to FM-12 rows.
 
     Returns
     -------
@@ -267,6 +279,13 @@ def parse_aa1_depth_mm(series: pd.Series) -> pd.Series:
         parts = str(val).split(",")
         if len(parts) < 2:
             return float("nan")
+        if max_period_hours is not None:
+            try:
+                period = int(parts[0].strip())
+            except ValueError:
+                period = 0
+            if period > max_period_hours:
+                return float("nan")
         depth_str = parts[1].strip()
         if depth_str in cfg.AA1_MISSING_DEPTHS:
             return float("nan")
@@ -322,9 +341,25 @@ def process_precipitation_data(
     df.dropna(subset=["DATE"], inplace=True)
     df.set_index("DATE", inplace=True)
 
-    # --- Parse precipitation ---
+    # --- Parse precipitation with report-type-aware period limits ---
+    # FM-12 (SYNOP, e.g. Heathrow) reports precipitation on 6 h and 12 h accumulation
+    # periods — these are the standard SYNOP reporting intervals and must all be kept.
+    # FM-15 (METAR) and AUTO (pre-2012 ASOS, functionally identical to FM-15) also
+    # emit 3 h / 6 h / 24 h summary records alongside every standard 1 h reading; those
+    # summaries would double-count precipitation if included, so only period_hours == 1
+    # is kept for those report types.
     if cfg.AA1_COLUMN in df.columns:
-        df["precipitation_mm"] = parse_aa1_depth_mm(df[cfg.AA1_COLUMN])
+        if "REPORT_TYPE" in df.columns:
+            report_type_col = df["REPORT_TYPE"].astype(str)
+            is_synop = report_type_col == "FM-12"
+            # FM-12 rows: accept any accumulation period (6 h / 12 h SYNOP standard)
+            precip_all = parse_aa1_depth_mm(df[cfg.AA1_COLUMN], max_period_hours=None)
+            # FM-15 / AUTO rows: only accept 1-hour accumulations to avoid double-counting
+            precip_1h = parse_aa1_depth_mm(df[cfg.AA1_COLUMN], max_period_hours=1)
+            # Use full accumulation for FM-12 rows, 1-hour limit for all others
+            df["precipitation_mm"] = precip_all.where(is_synop, precip_1h)
+        else:
+            df["precipitation_mm"] = parse_aa1_depth_mm(df[cfg.AA1_COLUMN])
     else:
         logger.warning(
             "'%s' column not found; 'precipitation_mm' will be NaN.", cfg.AA1_COLUMN

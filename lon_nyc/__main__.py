@@ -98,6 +98,16 @@ def main(argv: list[str] | None = None) -> None:
             "(e.g. snow_vs_rain.png). If omitted, no plot is produced."
         ),
     )
+    parser.add_argument(
+        "--trend-plot",
+        metavar="FILE",
+        default=None,
+        help=(
+            "Generate a multi-panel long-term trends figure (annual values + "
+            "5-year rolling mean, shared year x-axis) and save it to FILE "
+            "(e.g. long_term_trends.png). If omitted, no plot is produced."
+        ),
+    )
     args = parser.parse_args(argv)
 
     s3 = noaa.make_s3_client()
@@ -238,6 +248,17 @@ def main(argv: list[str] | None = None) -> None:
         )
         print("done.")
         print(f"Snow vs rain plot saved to: {args.snow_plot}")
+
+    # ── Long-term trends plot ────────────────────────────────────────────────
+    if args.trend_plot:
+        print(f"\nGenerating long-term trends plot … ", end="", flush=True)
+        plots.plot_long_term_trends(
+            frames,
+            temp_frames,
+            output_path=args.trend_plot,
+        )
+        print("done.")
+        print(f"Long-term trends plot saved to: {args.trend_plot}")
 
 
 if __name__ == "__main__":

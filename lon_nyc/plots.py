@@ -1,6 +1,6 @@
 """Plotting helpers for lon_nyc analysis results.
 
-Three figures are currently supported:
+Four figures are currently supported:
 
 * :func:`plot_threshold_sensitivity` — two-panel rainfall threshold sweep
   (rainy hours / rainy days vs threshold mm, log scale).
@@ -8,6 +8,9 @@ Three figures are currently supported:
   density histogram (a) and mean absolute deviation vs chosen temperature (b).
 * :func:`plot_snow_vs_rain` — stacked-bar chart comparing snow days / hours
   with liquid-rain days / hours for each city across years.
+* :func:`plot_long_term_trends` — multi-panel time series (shared year x-axis)
+  showing annual precipitation, rainy hours/days, snow days, sub-zero hours,
+  and cooling degree-days for both cities with a rolling 5-year mean.
 
 London is always drawn in red (``tab:red``), NYC in blue (``tab:blue``).
 """
@@ -371,5 +374,167 @@ def plot_snow_vs_rain(
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(out), dpi=150)
         logger.info("Saved snow vs rain plot to %s", out)
+
+    return fig
+
+
+def plot_long_term_trends(
+    annual_frames: list[pd.DataFrame],
+    temp_frames: list[pd.DataFrame],
+    output_path: str | Path | None = None,
+    rolling_window: int = 5,
+) -> "Figure":  # type: ignore[name-defined]
+    """Multi-panel time-series figure showing long-term precipitation and temperature trends.
+
+    Six vertically stacked panels share a common year x-axis.  Annual values
+    are shown as semi-transparent markers/bars, and a rolling mean (default
+    5-year window, min 3 years) is overlaid as a solid line to reveal any
+    secular drift.
+
+    Panels (top to bottom):
+
+    * **(a) Total precipitation (mm/yr)** — annual liquid-equivalent depth
+    * **(b) Rainy hours / yr** — hours exceeding the 0.254 mm threshold
+    * **(c) Rainy days / yr** — calendar days with at least one rainy hour
+    * **(d) Snow days / yr** — calendar days with at least one snow hour
+    * **(e) Sub-zero hours / yr** — hours with T < 0 °C
+    * **(f) CDD (°C/obs)** — mean cooling degree-hour above 18 °C per obs
+
+    London is drawn in red (``tab:red``), NYC in blue (``tab:blue``).
+    A shaded band marks the ±1 std deviation of each city's rolling window.
+
+    Parameters
+    ----------
+    annual_frames:
+        List of DataFrames as returned by
+        :func:`lon_nyc.analysis.annual_summary`, one per city.
+    temp_frames:
+        List of DataFrames as returned by
+        :func:`lon_nyc.analysis.annual_temperature_summary`, one per city.
+    output_path:
+        If given, save the figure to this path (PNG at 150 dpi).
+    rolling_window:
+        Width of the rolling mean window in years (default 5).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    import matplotlib.ticker as mticker
+
+    # ── Merge precip and temperature into per-city DataFrames ─────────────────
+    # Build a dict: label → merged DataFrame with all columns
+    city_data: dict[str, pd.DataFrame] = {}
+    for df in annual_frames:
+        if df.empty:
+            continue
+        label = df["label"].iloc[0]
+        city_data[label] = df.set_index("year").copy()
+
+    for df in temp_frames:
+        if df.empty:
+            continue
+        label = df["label"].iloc[0]
+        temp_indexed = df.set_index("year")
+        if label in city_data:
+            city_data[label] = city_data[label].join(
+                temp_indexed[["mean_cdd_c", "sub_zero_hours"]], how="outer"
+            )
+        else:
+            city_data[label] = temp_indexed[["mean_cdd_c", "sub_zero_hours"]].copy()
+
+    # Panel specification: (column, y-label, panel-letter)
+    panels = [
+        ("total_precip_mm", "Total precip (mm/yr)", "a"),
+        ("rainy_hours",     "Rainy hours / yr",     "b"),
+        ("rainy_days",      "Rainy days / yr",      "c"),
+        ("snow_days",       "Snow days / yr",       "d"),
+        ("sub_zero_hours",  "Sub-zero hours / yr",  "e"),
+        ("mean_cdd_c",      "CDD (°C/obs)",         "f"),
+    ]
+    n_panels = len(panels)
+
+    fig, axes = plt.subplots(
+        n_panels, 1,
+        figsize=(12, 2.8 * n_panels),
+        sharex=True,
+        constrained_layout=True,
+    )
+
+    min_year = min(
+        (int(df.index.min()) for df in city_data.values() if not df.empty),
+        default=2005,
+    )
+    max_year = max(
+        (int(df.index.max()) for df in city_data.values() if not df.empty),
+        default=2024,
+    )
+
+    for ax, (col, ylabel, letter) in zip(axes, panels):
+        for label, df in city_data.items():
+            if col not in df.columns:
+                continue
+            colour = _CITY_COLOURS.get(label, "black")
+            years = df.index.astype(int)
+            values = df[col].astype(float)
+
+            # Annual values as semi-transparent scatter / step
+            ax.plot(
+                years, values,
+                color=colour, alpha=0.35, linewidth=1.0,
+                marker="o", markersize=3, zorder=2,
+                label=label,
+            )
+
+            # Rolling mean (min_periods=3 so early years still appear)
+            roll = (
+                pd.Series(values.values, index=years)
+                .rolling(rolling_window, center=True, min_periods=3)
+            )
+            roll_mean = roll.mean()
+            roll_std  = roll.std()
+
+            ax.plot(
+                years, roll_mean,
+                color=colour, linewidth=2.2, zorder=3,
+            )
+            ax.fill_between(
+                years,
+                roll_mean - roll_std,
+                roll_mean + roll_std,
+                color=colour, alpha=0.12, zorder=1,
+            )
+
+        ax.set_ylabel(ylabel, fontsize=9)
+        ax.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.6)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.set_xlim(min_year - 0.5, max_year + 0.5)
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True, nbins=10))
+        ax.text(
+            0.01, 0.96, f"({letter})",
+            transform=ax.transAxes, fontsize=9, fontweight="bold",
+            va="top", ha="left",
+        )
+
+    # x-label only on bottom panel
+    axes[-1].set_xlabel("Year", fontsize=10)
+
+    # Legend on top panel
+    handles, labels = axes[0].get_legend_handles_labels()
+    axes[0].legend(handles, labels, fontsize=9, framealpha=0.9, loc="upper right")
+
+    fig.suptitle(
+        f"Long-term precipitation & temperature trends  ({min_year}–{max_year})\n"
+        f"Thin line = annual value  ·  Thick line = {rolling_window}-year centred mean  ·  "
+        f"Band = ±1 std",
+        fontsize=11,
+        fontweight="bold",
+    )
+
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), dpi=150)
+        logger.info("Saved long-term trends plot to %s", out)
 
     return fig
