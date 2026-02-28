@@ -516,31 +516,38 @@ def process_temperature_data(
             "'REPORT_TYPE' column not found; skipping report-type filter."
         )
 
-    # --- Drop lower-priority report types when higher-priority ones are present ---
+    # --- Drop FM-15 / AUTO when FM-12 (SYNOP) is present ---
     # At stations like London Heathrow, FM-12 (SYNOP) and FM-15 (METAR) rows
     # occupy *different* timestamps, so the deduplication step cannot choose
-    # between them.  Heathrow FM-15 records temperature at whole-degree
-    # resolution, producing artificial histogram spikes, while FM-12 rows have
-    # genuine 0.1 °C resolution.  If any FM-12 data is present in the dataset
-    # we therefore discard all FM-15 rows for temperature entirely, keeping
-    # FM-15 only at stations (like NYC) that file no FM-12 reports.
-    if report_types and "REPORT_TYPE" in df.columns and len(report_types) > 1:
+    # between them on a per-timestamp basis.  Heathrow FM-15 records temperature
+    # at whole-degree Celsius resolution, producing artificial spikes in the
+    # histogram, while FM-12 rows carry genuine 0.1 °C resolution.  If any
+    # FM-12 data is present in the dataset we therefore discard all FM-15 and
+    # AUTO rows for temperature entirely.
+    #
+    # IMPORTANT: this drop is triggered *only* by the presence of FM-12.
+    # FM-15 and AUTO are both METAR-family hourly observation types with
+    # identical temperature resolution; they must NOT cause each other to be
+    # dropped.  In particular, early NYC data (2005–2012) contains a mix of
+    # AUTO (the bulk of observations) and a small number of FM-15 rows (source
+    # 4 supplemental records); without this guard, detecting any FM-15 would
+    # cause all AUTO rows to be discarded, reducing temperature coverage from
+    # ~86 % to ~5–13 % and severely undercounting sub-zero hours.
+    if report_types and "REPORT_TYPE" in df.columns:
         rt_col = df["REPORT_TYPE"].astype(str)
-        for i, preferred in enumerate(report_types[:-1]):
-            if (rt_col == preferred).any():
-                # Higher-priority type is present — drop everything below it
-                drop_types = set(report_types[i + 1:])
-                before = len(df)
-                df = df[~rt_col.isin(drop_types)]
-                logger.info(
-                    "Station has '%s' data; dropped lower-priority types %s "
-                    "(%d → %d rows) to avoid mixed-resolution temperature bias.",
-                    preferred,
-                    drop_types,
-                    before,
-                    len(df),
-                )
-                break
+        if (rt_col == "FM-12").any():
+            # FM-12 (SYNOP) is present — drop METAR-family types to keep
+            # only the higher-resolution SYNOP temperature observations.
+            metar_types = {"FM-15", "AUTO "}
+            before = len(df)
+            df = df[~rt_col.isin(metar_types)]
+            logger.info(
+                "Station has FM-12 data; dropped METAR-family types %s "
+                "(%d → %d rows) to avoid mixed-resolution temperature bias.",
+                metar_types,
+                before,
+                len(df),
+            )
 
     # --- Sort by report-type priority before deduplication ---
     # Assign a numeric priority based on position in report_types so that when
