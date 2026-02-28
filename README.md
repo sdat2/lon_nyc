@@ -1,4 +1,5 @@
-# lon.nyc
+# lon_nyc
+[![CI](https://github.com/sdat2/lon_nyc/actions/workflows/ci.yml/badge.svg)](https://github.com/sdat2/lon_nyc/actions/workflows/ci.yml)
 
 Is New York City wetter than London?  The popular image of London as a drizzly,
 rain-soaked city persists despite evidence to the contrary.  This project
