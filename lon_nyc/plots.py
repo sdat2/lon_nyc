@@ -1,6 +1,6 @@
 """Plotting helpers for lon_nyc analysis results.
 
-Four figures are currently supported:
+Five figures are currently supported:
 
 * :func:`plot_threshold_sensitivity` — two-panel rainfall threshold sweep
   (rainy hours / rainy days vs threshold mm, log scale).
@@ -11,6 +11,9 @@ Four figures are currently supported:
 * :func:`plot_long_term_trends` — multi-panel time series (shared year x-axis)
   showing annual precipitation, rainy hours/days, snow days, sub-zero hours,
   and cooling degree-days for both cities with a rolling 5-year mean.
+* :func:`plot_air_quality` — two-panel monthly time series of PM2.5 and NO2
+  concentrations (µg/m³) for London (Bloomsbury) and NYC (five boroughs),
+  2015–2024, with the June 2023 Canadian wildfire event annotated.
 
 London is always drawn in red (``tab:red``), NYC in blue (``tab:blue``).
 """
@@ -537,4 +540,162 @@ def plot_long_term_trends(
         fig.savefig(str(out), dpi=150)
         logger.info("Saved long-term trends plot to %s", out)
 
+    return fig
+
+
+# ---------------------------------------------------------------------------
+# Air quality time series
+# ---------------------------------------------------------------------------
+
+def plot_air_quality(
+    nyc_pm25: "pd.DataFrame",
+    lon_pm25: "pd.DataFrame",
+    nyc_no2: "pd.DataFrame",
+    lon_no2: "pd.DataFrame",
+    output_path: str | Path | None = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
+    rolling_months: int = 3,
+) -> "Figure":
+    """Two-panel monthly air quality time series: PM2.5 (top) and NO2 (bottom).
+
+    Both panels share the same x-axis (calendar month, 2015–2024).
+    London is drawn in red, NYC in blue.  A thin semi-transparent line shows
+    raw monthly means; a thick line shows the centred ``rolling_months``-month
+    rolling mean.  The June 2023 Canadian wildfire smoke event is annotated on
+    the PM2.5 panel.
+
+    Parameters
+    ----------
+    nyc_pm25, lon_pm25:
+        Monthly mean PM2.5 concentration (µg/m³).  Each DataFrame must have
+        columns ``date`` (datetime) and ``mean_conc`` (float).
+    nyc_no2, lon_no2:
+        Monthly mean NO2 concentration (µg/m³, after unit conversion).
+    output_path:
+        If given, the figure is saved here (PNG at 150 dpi).
+    start_year, end_year:
+        Used in the figure title.
+    rolling_months:
+        Window size for the centred rolling mean (default 3 months).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    import matplotlib.dates as mdates
+    import matplotlib.patches as mpatches
+
+    LON_COLOUR = "tab:red"
+    NYC_COLOUR = "tab:blue"
+    WILDFIRE_DATE = pd.Timestamp("2023-06-01")  # annotate the month
+
+    WHO_PM25 = 15.0  # WHO annual guideline µg/m³ (2005 standard still commonly cited)
+    WHO_PM25_2021 = 5.0  # WHO 2021 revised guideline
+
+    fig, (ax_pm, ax_no) = plt.subplots(
+        2, 1,
+        figsize=(12, 7),
+        sharex=True,
+        constrained_layout=True,
+    )
+
+    def _plot_series(ax: "plt.Axes", df: "pd.DataFrame", colour: str, label: str) -> None:  # type: ignore[name-defined]
+        if df.empty:
+            return
+        x = df["date"]
+        y = df["mean_conc"]
+        roll = y.rolling(rolling_months, center=True, min_periods=2).mean()
+
+        ax.plot(x, y, color=colour, alpha=0.25, linewidth=0.9, zorder=2)
+        ax.plot(x, roll, color=colour, linewidth=2.2, label=label, zorder=3)
+
+    # ---- PM2.5 panel ----
+    _plot_series(ax_pm, lon_pm25, LON_COLOUR, "London (Bloomsbury BL0)")
+    _plot_series(ax_pm, nyc_pm25, NYC_COLOUR, "NYC (5-borough mean)")
+
+    # WHO guidelines
+    ax_pm.axhline(WHO_PM25, color="goldenrod", linewidth=1.0, linestyle="--",
+                  alpha=0.8, zorder=1)
+    ax_pm.axhline(WHO_PM25_2021, color="orange", linewidth=1.0, linestyle=":",
+                  alpha=0.8, zorder=1)
+    ax_pm.text(pd.Timestamp(f"{start_year or 2015}-03-01"), WHO_PM25 + 0.4,
+               "WHO 2005 (15 µg/m³)", fontsize=7, color="goldenrod", va="bottom")
+    ax_pm.text(pd.Timestamp(f"{start_year or 2015}-03-01"), WHO_PM25_2021 + 0.4,
+               "WHO 2021 (5 µg/m³)", fontsize=7, color="orange", va="bottom")
+
+    # Annotate wildfire event — place text at a fixed fraction of y-data range
+    ax_pm.axvline(WILDFIRE_DATE, color="saddlebrown", linewidth=1.2,
+                  linestyle="--", alpha=0.7, zorder=4)
+    ax_pm.annotate(
+        "Canadian wildfires\nJun 2023",
+        xy=(WILDFIRE_DATE, 0),
+        xycoords=("data", "axes fraction"),
+        xytext=(10, -0.02),
+        textcoords="offset points",
+        fontsize=7.5,
+        color="saddlebrown",
+        va="top",
+        ha="left",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="saddlebrown",
+                  alpha=0.85, linewidth=0.8),
+        annotation_clip=False,
+    )
+
+    ax_pm.set_ylabel("PM2.5 (µg/m³)", fontsize=10)
+    ax_pm.set_ylim(bottom=0)
+    ax_pm.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.5)
+    ax_pm.spines[["top", "right"]].set_visible(False)
+    ax_pm.legend(fontsize=9, framealpha=0.9, loc="upper right")
+    ax_pm.text(0.01, 0.96, "(a)", transform=ax_pm.transAxes,
+               fontsize=9, fontweight="bold", va="top")
+
+    # ---- NO2 panel ----
+    _plot_series(ax_no, lon_no2, LON_COLOUR, "London (Bloomsbury BL0)")
+    _plot_series(ax_no, nyc_no2, NYC_COLOUR, "NYC (5-borough mean)")
+
+    # WHO NO2 annual guideline: 10 µg/m³ (2021)
+    ax_no.axhline(10.0, color="orange", linewidth=1.0, linestyle=":",
+                  alpha=0.8, zorder=1)
+    ax_no.text(pd.Timestamp(f"{start_year or 2015}-03-01"), 10.4,
+               "WHO 2021 NO₂ (10 µg/m³)", fontsize=7, color="orange", va="bottom")
+
+    ax_no.axvline(WILDFIRE_DATE, color="saddlebrown", linewidth=1.2,
+                  linestyle="--", alpha=0.7, zorder=4)
+
+    ax_no.set_ylabel("NO₂ (µg/m³)", fontsize=10)
+    ax_no.set_ylim(bottom=0)
+    ax_no.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.5)
+    ax_no.spines[["top", "right"]].set_visible(False)
+    ax_no.legend(fontsize=9, framealpha=0.9, loc="upper right")
+    ax_no.text(0.01, 0.96, "(b)", transform=ax_no.transAxes,
+               fontsize=9, fontweight="bold", va="top")
+
+    # ---- Shared x-axis formatting ----
+    ax_no.xaxis.set_major_locator(mdates.YearLocator())
+    ax_no.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax_no.xaxis.set_minor_locator(mdates.MonthLocator(bymonth=[4, 7, 10]))
+    ax_no.set_xlabel("Date", fontsize=10)
+    fig.autofmt_xdate(rotation=0, ha="center")
+
+    yr_range = (
+        f"{start_year}–{end_year}"
+        if start_year and end_year
+        else "2015–2024"
+    )
+    fig.suptitle(
+        f"Air quality: London vs NYC  ({yr_range})\n"
+        f"Monthly means  ·  Thick line = {rolling_months}-month centred rolling mean  ·  "
+        f"Data: EPA AQS (NYC) & ERG LAQN (London)",
+        fontsize=11,
+        fontweight="bold",
+    )
+
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), dpi=150, bbox_inches="tight")
+        logger.info("Saved air quality plot to %s", out)
+
+    return fig
     return fig
