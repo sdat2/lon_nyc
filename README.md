@@ -753,9 +753,9 @@ https://api.erg.ic.ac.uk/AirQuality/
 | `Daily/MonitoringIndex/SiteCode={code}/Date={YYYY-MM-DD}/Json` | DAQI for one site |
 | `Annual/MonitoringObjective/SiteCode={code}/Year={year}/Json` | Annual mean concentrations and data-capture rates |
 
-- **DAQI scale**: 1–10 (1–3 = Low, 4–6 = Moderate, 7–8 = High, 9–10 = Very High)
-- **Reference site**: Camden – Bloomsbury (`BL0`) — urban background site with
-  one of the longest continuous PM2.5 records in central London
+- **Reference site**: Camden – Bloomsbury (`BL0`) — officially classified as
+  "Urban Background" (LAQN category), continuously monitored since January 1992,
+  one of the longest PM2.5 records in central London
 - **Speed caveat**: the daily endpoint takes ~1 s per request, so a decade of
   daily data requires ~60 minutes; annual summaries are fast (one call per year)
 
@@ -776,19 +776,69 @@ https://api.erg.ic.ac.uk/AirQuality/
 All values are well below the WHO annual guideline of 15 µg/m³, and the
 downward trend is consistent with London's ongoing Clean Air Zone policies.
 
-### Key finding
+### Why not compare AQI to DAQI?
+
+AQI and DAQI are not comparable — they have completely different definitions,
+breakpoints, and scales (AQI is 0–500; DAQI is 1–10), and are calibrated
+against different national air quality standards (US NAAQS vs UK AQS).
+Comparing them numerically would be meaningless.
+
+The correct shared unit is **annual mean PM2.5 concentration in µg/m³**, which
+is what both networks actually measure. For NYC, the EPA's
+`annual_conc_by_monitor_{year}.zip` files (parameter code 88101) give annual
+arithmetic means per monitor in µg/m³. Filtering to the five boroughs (Bronx,
+Kings, Manhattan, Queens, Richmond) and averaging the monitors with ≥75% data
+capture gives a city-level figure directly comparable to London's Bloomsbury
+annual mean.
+
+**2023 comparison (annual mean PM2.5):**
+
+| City | Value | Source |
+|------|------:|-------|
+| NYC (five boroughs, monitor mean) | ~9.3 µg/m³ | EPA FRM gravimetric monitors |
+| London (Bloomsbury BL0) | 8 µg/m³ | ERG TEOM-FDMS |
+
+**Caveats on comparability:**
+
+1. **Measurement method**: NYC EPA monitors use R&P 2025 gravimetric FRM (the
+   US regulatory reference method). London BL0 uses TEOM-FDMS — a different
+   optical/correction method that tends to slightly underestimate relative to
+   gravimetric. The londonair.org.uk site page explicitly labels the BL0 PM2.5
+   series as "not reference equivalent".
+2. **Spatial representativeness**: NYC averages multiple borough monitors;
+   London BL0 is a single central site. Central London typically has *lower*
+   PM2.5 than inner-city high-traffic areas (e.g. Marylebone Road).
+3. **CBSA vs borough scope**: The NYC CBSA (code 35620) includes Suffolk County
+   and New Jersey suburbs, which have lower PM2.5 (~7–8 µg/m³) and would bias
+   a CBSA-level average downward. Five-borough monitors only should be used.
+
+Despite these caveats, the annual means are genuinely close (~8–10 µg/m³ for
+both cities in recent years), and the trend direction is clear: both have
+improved substantially since the 1990s, and neither is particularly bad by
+global standards. The more interesting contrast is the acute event picture.
+
+### Key finding — the wildfire contrast
 
 On **7 June 2023**, during the peak of the Canadian wildfire smoke event:
 
-- **NYC AQI: 278** ("Very Unhealthy") — PM2.5 from Canadian boreal fires
-- **London DAQI: 1–3** ("Low") at every monitoring site — completely unaffected
+- **NYC**: AQI 278 ("Very Unhealthy") — worst air quality day in over a decade,
+  driven entirely by PM2.5 from Canadian boreal fires
+- **London**: DAQI 1–3 ("Low") at every monitoring site — completely unaffected
 
-This single day encapsulates the differing risk profiles: both cities have made
-enormous progress since the 20th century, but NYC's position downwind of an
-increasingly fire-prone boreal forest makes acute smoke events an unavoidable
-feature of its climate, with no London equivalent.
+The previous day (June 6) NYC registered AQI 183 (Unhealthy); the day after
+(June 8) AQI 191 (Unhealthy). Three consecutive days of genuinely hazardous
+air, driven by a single remote wildfire event with no analogue in London's
+recent record.
+
+This encapsulates the differing risk profiles: both cities have made enormous
+progress since the 20th century, but NYC's position downwind of an increasingly
+fire-prone boreal forest makes acute smoke events an unavoidable feature of its
+climate, with no London equivalent.
 
 ### Implementation status
 
-Data acquisition confirmed working.  Implementation of `scripts/air_quality.py`
-and a corresponding `plots/air_quality.png` is in progress.
+Data acquisition confirmed working. The chosen approach is annual mean PM2.5
+in µg/m³ (five-borough EPA monitors for NYC; ERG annual objective data for
+London), supplemented by NYC daily AQI data to capture the wildfire event.
+Implementation of `scripts/air_quality.py` and `plots/air_quality.png` is in
+progress.
