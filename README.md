@@ -716,36 +716,126 @@ factor of 1.88 µg/m³ per ppb (at 20 °C / 1 atm).
 
 ### Monitor selection
 
-The first challenge was spatial comparability.  The EPA's five-borough network
-has around ten monitors spread across Manhattan, the Bronx, Queens, Brooklyn
-and Staten Island; the London LAQN has 34 PM2.5 sites.  Averaging across an
-entire city network on one side and using a single central site on the other
-would not be a fair comparison.  The chosen approach is **one matched
-urban-background site per city for each pollutant**.
+Getting a genuinely comparable pair of sites took more work than expected.
+The two core requirements were: (a) the same LAQN/EPA **site classification**
+("Urban Background" on both sides — not roadside, kerbside or industrial), and
+(b) a **continuous instrument** giving a reading every single day across the
+full 2015–2024 window.
 
-A further complication was instrument continuity.  All NYC EPA PM2.5 monitors
-in the standard `daily_88101` (FRM) files use filter-based gravimetric
-samplers that collect one 24-hour sample every one to six days — giving only
-~10–15 valid days per month.  While monthly averages computed from those sparse
-samples are statistically valid, they look gappy on a timeseries plot.  The
-EPA also publishes a separate `daily_88502` file for continuous PM2.5 analysers
-(TEOM/BAM instruments), which provide a reading every single day.
+#### NYC — what was considered and why each was rejected or kept
 
-Similarly for London: the obvious choice, BL0 Camden–Bloomsbury, has an
-11-month PM2.5 gap (June 2021 – April 2022) and no data at all after August
-2023, making it useless for a 2015–2024 comparison.
+**PM2.5 instrument type — FRM vs continuous**
+
+All sites in the standard EPA `daily_88101` (FRM) archive use filter-based
+gravimetric samplers.  A filter cassette is exposed for exactly 24 hours, then
+sent to a laboratory for weighing — but only every 1–6 days depending on the
+monitoring schedule.  IS 45 (the initial candidate) operates on a roughly
+every-other-day schedule, yielding ~14–18 valid observations per month.
+Monthly means computed from those samples are statistically valid, but the
+timeseries looks visibly gappy when plotted.
+
+The EPA publishes a separate archive, `daily_88502`, for **continuous PM2.5
+instruments** (TEOM and BAM analysers that report every hour and roll up to
+a 24-hour block average).  These give one row per day, every day.
+
+**NYC PM2.5 sites surveyed (continuous, EPA 88502, 2015–2024):**
+
+| Site | Borough | Days/yr (typical) | Notes |
+|---|---|---|---|
+| **CCNY** | Manhattan (Washington Heights) | 363–366 | ✅ **Chosen.** Longest continuous PM2.5 record in Manhattan. Urban background character — college campus on a hilltop, away from any major road. Full 10-year record. |
+| MORRISANIA | Bronx | 360–365 | Urban background, full record, but Bronx not Manhattan. |
+| IS 74 | Staten Island | 355–365 | Urban background, but geographically isolated from the other boroughs. |
+| FRESHKILLS WEST | Staten Island | 345–360 | Adjacent to a landfill — not representative urban background. |
+| MASPETH LIBRARY | Queens | 358–365 | Queens community library — urban background, good record. |
+| PS 314 / PS 274 | Brooklyn | 130–215 | Incomplete records, Brooklyn schools. |
+| Intermediate School 143 | Bronx | 299–310 | Good record but Bronx, and IS 52 already covers the Bronx for NO2. |
+
+CCNY (City College of New York, 160 Convent Ave, 40.819°N 73.948°W) was
+chosen: it is the only continuous PM2.5 site in Manhattan, sits on a
+hilltop campus in Washington Heights well away from major arterials, and has
+run without gaps since at least 2015.
+
+**NYC NO2 sites surveyed (EPA 42602, continuous, 2015–2024):**
+
+No Manhattan NO2 monitor exists anywhere in the EPA network.  The available
+sites with a full 10-year continuous record are all in the Bronx or Queens:
+
+| Site | Borough | Lat | Lon | Distance from CCNY | Mean NO2 2023 (µg/m³) | Notes |
+|---|---|---|---|---|---|---|
+| **IS 52** | Bronx | 40.816 | −73.902 | **3.5 km** | 29 | ✅ **Chosen.** Closest site to CCNY, same urban-background residential character. |
+| PFIZER LAB SITE | Bronx | 40.868 | −73.878 | 9 km | 26 | Historically co-located with an industrial facility — less representative. |
+| QUEENS COLLEGE 2 | Queens | 40.736 | −73.822 | 11 km | 26 | College campus, good record, but 11 km from CCNY and in a different borough. |
+| Queens College Near Road | Queens | 40.736 | −73.822 | 11 km | — | Explicitly designated "Near Road" — roadside, not urban background. Excluded. |
+
+IS 52 (South Bronx, 40.816°N 73.902°W) is a school-based monitor 3.5 km
+from CCNY across the Harlem River — essentially the same neighbourhood.
+Its 2023 mean NO2 of 29 µg/m³ is consistent with other urban-background Bronx
+and Queens sites, and it has no gaps in the 2015–2024 record.
+
+#### London — what was considered and why each was rejected or kept
+
+The London LAQN has 258 active and historical monitoring sites across Greater
+London.  The ERG API exposes all of them.  The initial choice, BL0
+Camden–Bloomsbury, is one of the longest-running urban-background sites in
+the network (since 1992) but was found to have serious data problems for PM2.5:
+
+**BL0 Camden–Bloomsbury PM2.5 data availability by period:**
+
+| Period | Status |
+|---|---|
+| 2015 – May 2021 | ✅ Good (600–720 hourly values/month) |
+| Jun 2021 – Apr 2022 | ❌ **Complete gap — instrument offline for 11 months** |
+| May 2022 – Aug 2023 | ✅ Good |
+| Sep 2023 – Dec 2024 | ❌ **No data** |
+
+BL0 NO2 is fine throughout; the gap is specific to the PM2.5 instrument.
+Using BL0 would require either gap-filling or truncating the London PM2.5
+series at mid-2023 — neither is satisfactory for a 10-year comparison.
+
+**London urban-background sites checked for 2015–2024 continuity:**
+
+| Site | Type | PM2.5 2024? | NO2 2024? | Notes |
+|---|---|---|---|---|
+| BL0 Camden–Bloomsbury | Urban Background | ❌ (stopped Aug 2023) | ✅ | 11-month PM2.5 gap in 2021–22. Rejected for PM2.5. |
+| **KC1 N. Kensington** | Urban Background | ✅ | ✅ | ✅ **Chosen.** Continuous PM2.5 and NO2 throughout 2015–2024. Open since 1995. |
+| HK6 Hackney – Old Street | Roadside | ✅ | ✅ | Roadside classification — not urban background. Excluded. |
+| LW2 Lewisham – New Cross | Roadside | ✅ | ✅ | Roadside. Closed Apr 2025. Excluded. |
+| CT3 City of London – Aldgate | Urban Background | ❌ | ✅ | Closed Jun 2023. Excluded. |
+| MY1 Westminster – Marylebone Rd | Kerbside | ✅ | ✅ | The busiest road in London — intentionally high-pollution reference site, not urban background. Excluded. |
+| WA7 Wandsworth – Putney High St | Kerbside | ✅ | ✅ | Kerbside on a main road. Excluded. |
+
+KC1 (Kensington and Chelsea – North Kensington, 51.521°N 0.213°W) is LAQN
+"Urban Background", open since March 1995, located in a residential street
+in North Kensington — a direct analogue to the CCNY and IS 52 residential /
+campus character.  It has PM2.5 and NO2 running continuously through end of
+2024, with no multi-month gaps.  The Jan 2022 NO2 record has ~130 valid hours
+out of 720 (instrument issue for ~19 days) but this is isolated and the monthly
+mean is still computable from the remaining data.
+
+#### Summary: why this pair is the best available match
+
+| Criterion | NYC (CCNY + IS 52) | London (KC1) |
+|---|---|---|
+| Site classification | Urban Background (EPA) | Urban Background (LAQN) |
+| Instrument type | Continuous (TEOM/BAM) | Continuous (TEOM-FDMS) |
+| PM2.5 record completeness | 363–366 days/yr, no gaps | Near-complete, no multi-month gaps |
+| NO2 record completeness | Near-complete daily | Near-complete, one minor 19-day gap (Jan 2022) |
+| Setting | College hilltop / school, residential | Residential street |
+| Distance from city centre | ~8 km NW of Midtown | ~5 km W of central London |
+
+The main residual caveat is that CCNY uses a TEOM corrected with a site-specific
+correction factor, while KC1 uses TEOM-FDMS (a different semi-continuous
+correction).  Both are classified as "indicative" rather than reference-method
+instruments.  Absolute concentrations may differ by a few percent due to
+instrument systematics, but the inter-annual trends and event structure are
+robust.
 
 #### Final station pairs
 
 | | PM2.5 | NO2 |
 |---|---|---|
-| **NYC** | **CCNY** — City College of New York, 160 Convent Ave, Manhattan (40.82°N, 73.95°W). Continuous TEOM instrument (EPA param 88502), 363–366 valid days/year across the full 10-year window. | **IS 52** — Intermediate School 52, South Bronx (40.82°N, 73.90°W), 3.5 km from CCNY. Continuous NO2 analyser (EPA param 42602), near-complete daily record. *No Manhattan NO2 monitor exists in the EPA network.* |
-| **London** | **KC1** — Kensington and Chelsea – North Kensington (51.52°N, 0.21°W). LAQN "Urban Background", open since 1995, continuous PM2.5 and NO2 instruments (ERG/LAQN API), near-complete data through end of 2024. | Same KC1 site. |
-
-KC1 was preferred over BL0 (Bloomsbury) specifically because BL0's PM2.5
-record has an 11-month gap in 2021–22 and ends in mid-2023.  KC1 is the same
-LAQN site type (Urban Background), a similar distance from central London, and
-its instruments ran continuously throughout 2015–2024.
+| **NYC** | **CCNY** — City College of New York, 160 Convent Ave, Manhattan (40.819°N, 73.948°W). Continuous TEOM instrument (EPA param 88502), 363–366 valid days/year. | **IS 52** — Intermediate School 52, South Bronx (40.816°N, 73.902°W), 3.5 km from CCNY. Continuous analyser (EPA param 42602). *No Manhattan NO2 monitor exists in the EPA network.* |
+| **London** | **KC1** — Kensington and Chelsea – North Kensington (51.521°N, 0.213°W). LAQN "Urban Background", open since 1995, continuous PM2.5 and NO2 through 2024. | Same KC1 site. |
 
 #### Data sources
 
