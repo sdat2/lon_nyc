@@ -56,8 +56,8 @@ from lon_nyc.plots import plot_air_quality
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-START_YEAR = 2015
-END_YEAR = 2024
+START_YEAR = 2010
+END_YEAR = 2025
 
 # EPA parameter codes
 EPA_PM25 = 88502   # Continuous PM2.5 (BAM/TEOM) — near-complete daily record
