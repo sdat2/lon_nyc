@@ -65,7 +65,7 @@ EPA_PM25_DURATION = "24-HR BLK AVG"   # rolling 24-h block average, one row/day
 EPA_NO2 = 42602
 
 # Single NYC urban-background monitors (continuous instruments)
-NYC_PM25_SITE = "IS 52"           # City College NY, 160 Convent Ave, Manhattan — continuous TEOM
+NYC_PM25_SITE = "CCNY"           # City College NY, 160 Convent Ave, Manhattan — continuous TEOM
 NYC_NO2_SITE = "IS 52"           # South Bronx, 3.5 km from CCNY — continuous analyser
 NYC_STATE = "New York"
 NYC_BOROUGHS = {"New York", "Kings", "Queens", "Bronx", "Richmond"}
