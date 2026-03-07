@@ -70,7 +70,18 @@ NYC_NO2_SITE = "IS 52"           # South Bronx, 3.5 km from CCNY — continuous 
 NYC_STATE = "New York"
 NYC_BOROUGHS = {"New York", "Kings", "Queens", "Bronx", "Richmond"}
 
-# London ERG site
+# Additional urban-background NO2 sites plotted as thin context lines
+# NYC: other continuous sites with full records; London: other LAQN UB sites
+NYC_NO2_EXTRAS = {
+    "QUEENS COLLEGE 2": "Queens College 2",   # Queens campus, 10-yr record
+    "PFIZER LAB SITE":  "Pfizer Lab (Bronx)", # Bronx, 10-yr record
+}
+LON_NO2_EXTRAS = {
+    "IS6": "Islington–Arsenal",   # inner north, full 2015–2024 NO2 record
+    "HG4": "Haringey–Priory Pk",  # outer north, full 2015–2024 NO2 record
+}
+
+# London ERG primary site
 ERG_SITE = "KC1"   # Kensington & Chelsea – North Ken, Urban Background, continuous 2015–2024
 ERG_BASE = "https://api.erg.ic.ac.uk/AirQuality"
 
@@ -192,26 +203,32 @@ def _fetch_erg_month(site: str, year: int, month: int) -> pd.DataFrame:
     return df
 
 
-def get_london_daily(species: str, years: range) -> pd.DataFrame:
-    """Return daily mean concentration for London KC1 (North Kensington).
+def get_london_daily(species: str, years: range, site: str | None = None) -> pd.DataFrame:
+    """Return daily mean concentration for a London LAQN site.
+
+    Defaults to the primary ERG_SITE (KC1).  Pass ``site`` to fetch a
+    different site code (extra NO2 sites are not cached by the main loop
+    so will always trigger a live fetch on first run).
 
     Columns: date (datetime64), mean_conc (float).
     """
+    erg_site = site if site is not None else ERG_SITE
+    erg_site = site if site is not None else ERG_SITE
     frames = []
     total_months = len(years) * 12
     fetched = 0
     for year in years:
         for month in range(1, 13):
-            cache = CACHE_DIR / f"erg_{ERG_SITE}_{year}_{month:02d}.parquet"
+            cache = CACHE_DIR / f"erg_{erg_site}_{year}_{month:02d}.parquet"
             if not cache.exists():
                 print(
-                    f"  Fetching London {year}-{month:02d} "
+                    f"  Fetching London {erg_site} {year}-{month:02d} "
                     f"({fetched+1}/{total_months}) …",
                     end="\r",
                     flush=True,
                 )
                 time.sleep(0.1)  # be polite to the API
-            df = _fetch_erg_month(ERG_SITE, year, month)
+            df = _fetch_erg_month(erg_site, year, month)
             fetched += 1
 
             sp = df[df["species"] == species].dropna(subset=["value"])
@@ -250,18 +267,17 @@ def to_monthly(daily: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     years = range(START_YEAR, END_YEAR + 1)
 
-    # ---- NYC data ----
+    # ---- NYC primary data ----
     print(f"\nFetching NYC PM2.5 (EPA 88502, {NYC_PM25_SITE}) {START_YEAR}–{END_YEAR} …")
     nyc_pm25_daily = get_nyc_daily(EPA_PM25, years, NYC_PM25_SITE)
     nyc_pm25_monthly = to_monthly(nyc_pm25_daily)
 
     print(f"\nFetching NYC NO2 (EPA 42602, {NYC_NO2_SITE}) {START_YEAR}–{END_YEAR} …")
     nyc_no2_daily = get_nyc_daily(EPA_NO2, years, NYC_NO2_SITE)
-    # Convert ppb → µg/m³ to match London units
     nyc_no2_daily["mean_conc"] = nyc_no2_daily["mean_conc"] * NO2_PPB_TO_UGM3
     nyc_no2_monthly = to_monthly(nyc_no2_daily)
 
-    # ---- London data ----
+    # ---- London primary data ----
     print(f"\nFetching London PM2.5 (ERG {ERG_SITE}) {START_YEAR}–{END_YEAR} …")
     lon_pm25_daily = get_london_daily("PM25", years)
     lon_pm25_monthly = to_monthly(lon_pm25_daily)
@@ -269,6 +285,21 @@ def main() -> None:
     print(f"\nFetching London NO2 (ERG {ERG_SITE}) {START_YEAR}–{END_YEAR} …")
     lon_no2_daily = get_london_daily("NO2", years)
     lon_no2_monthly = to_monthly(lon_no2_daily)
+
+    # ---- Extra NYC NO2 context sites ----
+    nyc_no2_extras: dict[str, pd.DataFrame] = {}
+    for site_name, label in NYC_NO2_EXTRAS.items():
+        print(f"\nFetching NYC NO2 extra ({site_name}) …")
+        daily = get_nyc_daily(EPA_NO2, years, site_name)
+        daily["mean_conc"] = daily["mean_conc"] * NO2_PPB_TO_UGM3
+        nyc_no2_extras[label] = to_monthly(daily)
+
+    # ---- Extra London NO2 context sites ----
+    lon_no2_extras: dict[str, pd.DataFrame] = {}
+    for site_code, label in LON_NO2_EXTRAS.items():
+        print(f"\nFetching London NO2 extra ({site_code}) {START_YEAR}–{END_YEAR} …")
+        daily = get_london_daily("NO2", years, site=site_code)
+        lon_no2_extras[label] = to_monthly(daily)
 
     # ---- Quick sanity check ----
     print("\nData summary:")
@@ -280,6 +311,10 @@ def main() -> None:
           f"mean {nyc_no2_monthly['mean_conc'].mean():.1f} µg/m³")
     print(f"  London NO2 ({ERG_SITE}): {len(lon_no2_monthly)} months, "
           f"mean {lon_no2_monthly['mean_conc'].mean():.1f} µg/m³")
+    for label, df in nyc_no2_extras.items():
+        print(f"  NYC NO2 extra ({label}): {len(df)} months, mean {df['mean_conc'].mean():.1f} µg/m³")
+    for label, df in lon_no2_extras.items():
+        print(f"  London NO2 extra ({label}): {len(df)} months, mean {df['mean_conc'].mean():.1f} µg/m³")
 
     # ---- Plot ----
     print(f"\nGenerating plot → {OUTPUT_PATH}")
@@ -288,6 +323,8 @@ def main() -> None:
         lon_pm25=lon_pm25_monthly,
         nyc_no2=nyc_no2_monthly,
         lon_no2=lon_no2_monthly,
+        nyc_no2_extras=nyc_no2_extras,
+        lon_no2_extras=lon_no2_extras,
         output_path=OUTPUT_PATH,
         start_year=START_YEAR,
         end_year=END_YEAR,
