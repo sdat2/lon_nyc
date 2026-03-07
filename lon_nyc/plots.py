@@ -616,10 +616,8 @@ def plot_air_quality(
             return
         x = df["date"]
         y = df["mean_conc"]
-        roll = y.rolling(rolling_months, center=True, min_periods=2).mean()
 
-        ax.plot(x, y, color=colour, alpha=0.25, linewidth=0.9, zorder=2)
-        ax.plot(x, roll, color=colour, linewidth=2.2, label=label, zorder=3)
+        ax.plot(x, y, color=colour, linewidth=1.2, label=label, zorder=2)
 
     # ---- PM2.5 panel ----
     _plot_series(ax_pm, lon_pm25, LON_COLOUR, lon_label)
@@ -728,7 +726,7 @@ def plot_air_quality(
     )
     fig.suptitle(
         f"Air quality: London vs NYC  ({yr_range})\n"
-        f"Monthly means  ·  Thick line = {rolling_months}-month centred rolling mean  ·  "
+        f"Monthly means  ·  "
         f"Data: EPA AQS (NYC) & ERG LAQN (London)",
         fontsize=11,
         fontweight="bold",
