@@ -1,24 +1,29 @@
 """Air quality comparison: NYC vs London, 2015–2024.
 
-Data sources
-------------
+Design: single matched urban-background monitors on each side
+---------------------------------------------------------
+Both cities are represented by a single, centrally-located, officially
+classified "urban background" monitoring site — the closest like-for-like
+comparison available.
+
 NYC — EPA pre-generated daily concentration files (no authentication):
   https://aqs.epa.gov/aqsweb/airdata/daily_{param}_{year}.zip
-  Parameter 88101 = PM2.5 FRM/FEM (µg/m³)
-  Parameter 42602 = NO2 (ppb)
-  Monitors filtered to the five boroughs only (Bronx, Kings, New York,
-  Queens, Richmond), with ≥75 % daily data capture, excluding near-road
-  sites.  Daily arithmetic means are averaged across monitors, then
-  resampled to calendar-month means.
+  Parameter 88101 = PM2.5 FRM (µg/m³)   → IS 45 (Upper East Side, Manhattan)
+    School IS 45, 2351 1st Avenue, NY 10035 — central Manhattan, urban background,
+    full 10-year record.
+  Parameter 42602 = NO2 (ppb)            → Queens College 2 (Flushing, Queens)
+    65-30 Kissena Blvd, Queens — college campus, urban background, full 10-year
+    record.  No Manhattan NO2 monitor exists in the EPA network.
+    NO2 converted from ppb to µg/m³ (× 1.88 at 20 °C / 1 atm) for direct
+    comparison with London.
 
 London — ERG / King's College London API (no authentication):
   https://api.erg.ic.ac.uk/AirQuality/Data/Site/SiteCode=BL0/
        StartDate={start}/EndDate={end}/Json
-  Site BL0 = Camden – Bloomsbury (official LAQN "Urban Background").
-  Hourly values for PM25 (µg/m³) and NO2 (µg/m³) are fetched by month,
-  averaged to daily means, then resampled to calendar-month means.
-  NO2 from ERG is in µg/m³; EPA reports in ppb.  1 ppb NO2 ≈ 1.88 µg/m³
-  at 20 °C / 1 atm.
+  Site BL0 = Camden – Bloomsbury, WC1 — LAQN "Urban Background" classification,
+  continuously monitored since January 1992.  Hourly PM25 (µg/m³) and NO2
+  (µg/m³) are fetched by month, averaged to daily means, then resampled to
+  calendar-month means.
 
 All data are cached in .cache/ to avoid re-downloading on subsequent runs.
 The London fetch takes ~2 minutes for a decade of data on first run.
@@ -55,13 +60,14 @@ END_YEAR = 2024
 EPA_PM25 = 88101
 EPA_NO2 = 42602
 
-# NYC five-borough county names in the EPA data
+# Single NYC urban-background monitors (matched to London Bloomsbury character)
+NYC_PM25_SITE = "IS 45"          # Upper East Side Manhattan — central, urban background
+NYC_NO2_SITE = "QUEENS COLLEGE 2"  # Flushing Queens campus — no Manhattan NO2 monitor exists
+NYC_STATE = "New York"
 NYC_BOROUGHS = {"New York", "Kings", "Queens", "Bronx", "Richmond"}
-# Near-road sites that should be excluded from the urban-background mean
-NEAR_ROAD_KEYWORDS = {"near road", "nearroad"}
 
 # London ERG site
-ERG_SITE = "BL0"
+ERG_SITE = "BL0"   # Camden – Bloomsbury, urban background
 ERG_BASE = "https://api.erg.ic.ac.uk/AirQuality"
 
 # NO2 unit conversion: 1 ppb NO2 → µg/m³ at 20 °C / 1 atm
@@ -99,35 +105,35 @@ def _fetch_epa_year(param: int, year: int) -> pd.DataFrame:
     return df
 
 
-def get_nyc_daily(param: int, years: range) -> pd.DataFrame:
-    """Return daily mean concentration for NYC five boroughs, 2015–2024.
+def get_nyc_daily(param: int, years: range, site_name: str) -> pd.DataFrame:
+    """Return daily mean concentration for a single named NYC EPA monitor.
 
     Columns: date (datetime64), mean_conc (float).
-    Units: µg/m³ for PM2.5; ppb for NO2 (converted to µg/m³ later).
+    Units: µg/m³ for PM2.5; ppb for NO2 (converted to µg/m³ by caller).
+    For PM2.5, only 24-HOUR sample duration rows are used to avoid mixing
+    instrument POCs.
     """
     frames = []
     for year in years:
         df = _fetch_epa_year(param, year)
 
-        # Filter to five boroughs
         mask = (
-            (df["State Name"] == "New York")
+            (df["State Name"] == NYC_STATE)
             & df["County Name"].isin(NYC_BOROUGHS)
+            & (df["Local Site Name"] == site_name)
             & (df["Observation Percent"] >= 75)
         )
-        nyc = df[mask].copy()
+        site = df[mask].copy()
 
-        # Drop near-road sites (biased high — traffic monitor, not urban background)
-        if "Local Site Name" in nyc.columns:
-            site_lower = nyc["Local Site Name"].str.lower().fillna("")
-            is_near_road = site_lower.apply(
-                lambda s: any(kw in s for kw in NEAR_ROAD_KEYWORDS)
-            )
-            nyc = nyc[~is_near_road]
+        # For PM2.5, stick to the 24-hour FRM reference measurements
+        if param == EPA_PM25 and "Sample Duration" in site.columns:
+            site = site[site["Sample Duration"] == "24 HOUR"]
 
-        # Average across monitors for each date
+        if site.empty:
+            continue
+
         daily = (
-            nyc.groupby("Date Local")["Arithmetic Mean"]
+            site.groupby("Date Local")["Arithmetic Mean"]
             .mean()
             .reset_index()
             .rename(columns={"Date Local": "date", "Arithmetic Mean": "mean_conc"})
@@ -240,12 +246,12 @@ def main() -> None:
     years = range(START_YEAR, END_YEAR + 1)
 
     # ---- NYC data ----
-    print(f"\nFetching NYC PM2.5 (EPA 88101) {START_YEAR}–{END_YEAR} …")
-    nyc_pm25_daily = get_nyc_daily(EPA_PM25, years)
+    print(f"\nFetching NYC PM2.5 (EPA 88101, {NYC_PM25_SITE}) {START_YEAR}–{END_YEAR} …")
+    nyc_pm25_daily = get_nyc_daily(EPA_PM25, years, NYC_PM25_SITE)
     nyc_pm25_monthly = to_monthly(nyc_pm25_daily)
 
-    print(f"\nFetching NYC NO2 (EPA 42602) {START_YEAR}–{END_YEAR} …")
-    nyc_no2_daily = get_nyc_daily(EPA_NO2, years)
+    print(f"\nFetching NYC NO2 (EPA 42602, {NYC_NO2_SITE}) {START_YEAR}–{END_YEAR} …")
+    nyc_no2_daily = get_nyc_daily(EPA_NO2, years, NYC_NO2_SITE)
     # Convert ppb → µg/m³ to match London units
     nyc_no2_daily["mean_conc"] = nyc_no2_daily["mean_conc"] * NO2_PPB_TO_UGM3
     nyc_no2_monthly = to_monthly(nyc_no2_daily)
@@ -261,13 +267,13 @@ def main() -> None:
 
     # ---- Quick sanity check ----
     print("\nData summary:")
-    print(f"  NYC PM2.5  : {len(nyc_pm25_monthly)} months, "
+    print(f"  NYC PM2.5  ({NYC_PM25_SITE}): {len(nyc_pm25_monthly)} months, "
           f"mean {nyc_pm25_monthly['mean_conc'].mean():.1f} µg/m³")
-    print(f"  London PM2.5: {len(lon_pm25_monthly)} months, "
+    print(f"  London PM2.5 ({ERG_SITE}): {len(lon_pm25_monthly)} months, "
           f"mean {lon_pm25_monthly['mean_conc'].mean():.1f} µg/m³")
-    print(f"  NYC NO2    : {len(nyc_no2_monthly)} months, "
+    print(f"  NYC NO2    ({NYC_NO2_SITE}): {len(nyc_no2_monthly)} months, "
           f"mean {nyc_no2_monthly['mean_conc'].mean():.1f} µg/m³")
-    print(f"  London NO2 : {len(lon_no2_monthly)} months, "
+    print(f"  London NO2 ({ERG_SITE}): {len(lon_no2_monthly)} months, "
           f"mean {lon_no2_monthly['mean_conc'].mean():.1f} µg/m³")
 
     # ---- Plot ----
@@ -280,6 +286,9 @@ def main() -> None:
         output_path=OUTPUT_PATH,
         start_year=START_YEAR,
         end_year=END_YEAR,
+        nyc_pm25_label=f"NYC ({NYC_PM25_SITE}, Manhattan)",
+        nyc_no2_label=f"NYC ({NYC_NO2_SITE}, Queens)",
+        lon_label=f"London ({ERG_SITE} Bloomsbury)",
     )
     print("Done.")
 

@@ -556,6 +556,9 @@ def plot_air_quality(
     start_year: int | None = None,
     end_year: int | None = None,
     rolling_months: int = 3,
+    nyc_pm25_label: str = "NYC (IS 45, Manhattan)",
+    nyc_no2_label: str = "NYC (Queens College 2)",
+    lon_label: str = "London (BL0 Bloomsbury)",
 ) -> "Figure":
     """Two-panel monthly air quality time series: PM2.5 (top) and NO2 (bottom).
 
@@ -578,6 +581,8 @@ def plot_air_quality(
         Used in the figure title.
     rolling_months:
         Window size for the centred rolling mean (default 3 months).
+    nyc_pm25_label, nyc_no2_label, lon_label:
+        Legend labels for each series.
 
     Returns
     -------
@@ -611,8 +616,8 @@ def plot_air_quality(
         ax.plot(x, roll, color=colour, linewidth=2.2, label=label, zorder=3)
 
     # ---- PM2.5 panel ----
-    _plot_series(ax_pm, lon_pm25, LON_COLOUR, "London (Bloomsbury BL0)")
-    _plot_series(ax_pm, nyc_pm25, NYC_COLOUR, "NYC (5-borough mean)")
+    _plot_series(ax_pm, lon_pm25, LON_COLOUR, lon_label)
+    _plot_series(ax_pm, nyc_pm25, NYC_COLOUR, nyc_pm25_label)
 
     # WHO guidelines
     ax_pm.axhline(WHO_PM25, color="goldenrod", linewidth=1.0, linestyle="--",
@@ -651,8 +656,8 @@ def plot_air_quality(
                fontsize=9, fontweight="bold", va="top")
 
     # ---- NO2 panel ----
-    _plot_series(ax_no, lon_no2, LON_COLOUR, "London (Bloomsbury BL0)")
-    _plot_series(ax_no, nyc_no2, NYC_COLOUR, "NYC (5-borough mean)")
+    _plot_series(ax_no, lon_no2, LON_COLOUR, lon_label)
+    _plot_series(ax_no, nyc_no2, NYC_COLOUR, nyc_no2_label)
 
     # WHO NO2 annual guideline: 10 µg/m³ (2021)
     ax_no.axhline(10.0, color="orange", linewidth=1.0, linestyle=":",
