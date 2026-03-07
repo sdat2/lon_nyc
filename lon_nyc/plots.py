@@ -556,9 +556,11 @@ def plot_air_quality(
     start_year: int | None = None,
     end_year: int | None = None,
     rolling_months: int = 3,
-    nyc_pm25_label: str = "NYC (IS 45, Manhattan)",
-    nyc_no2_label: str = "NYC (Queens College 2)",
-    lon_label: str = "London (BL0 Bloomsbury)",
+    nyc_pm25_label: str = "NYC (CCNY, Manhattan)",
+    nyc_no2_label: str = "NYC (IS 52, S. Bronx)",
+    lon_label: str = "London (KC1 N. Kensington)",
+    nyc_no2_extras: "dict[str, pd.DataFrame] | None" = None,
+    lon_no2_extras: "dict[str, pd.DataFrame] | None" = None,
 ) -> "Figure":
     """Two-panel monthly air quality time series: PM2.5 (top) and NO2 (bottom).
 
@@ -582,7 +584,11 @@ def plot_air_quality(
     rolling_months:
         Window size for the centred rolling mean (default 3 months).
     nyc_pm25_label, nyc_no2_label, lon_label:
-        Legend labels for each series.
+        Legend labels for the primary series.
+    nyc_no2_extras, lon_no2_extras:
+        Optional dicts mapping ``label → DataFrame`` for additional urban-
+        background NO2 sites.  Each is drawn as a single very thin, low-alpha
+        line (no rolling mean, no legend entry) to show the within-city spread.
 
     Returns
     -------
@@ -656,6 +662,18 @@ def plot_air_quality(
                fontsize=9, fontweight="bold", va="top")
 
     # ---- NO2 panel ----
+    # Ghost lines for extra urban-background sites (drawn first, no legend entry)
+    if lon_no2_extras:
+        for _lbl, _df in lon_no2_extras.items():
+            if not _df.empty:
+                ax_no.plot(_df["date"], _df["mean_conc"],
+                           color=LON_COLOUR, alpha=0.15, linewidth=0.7, zorder=1)
+    if nyc_no2_extras:
+        for _lbl, _df in nyc_no2_extras.items():
+            if not _df.empty:
+                ax_no.plot(_df["date"], _df["mean_conc"],
+                           color=NYC_COLOUR, alpha=0.15, linewidth=0.7, zorder=1)
+
     _plot_series(ax_no, lon_no2, LON_COLOUR, lon_label)
     _plot_series(ax_no, nyc_no2, NYC_COLOUR, nyc_no2_label)
 
@@ -672,7 +690,27 @@ def plot_air_quality(
     ax_no.set_ylim(bottom=0)
     ax_no.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.5)
     ax_no.spines[["top", "right"]].set_visible(False)
-    ax_no.legend(fontsize=9, framealpha=0.9, loc="upper right")
+
+    # Build legend: primary series + one proxy entry per city for the ghost lines
+    import matplotlib.lines as mlines
+    _no2_handles, _no2_labels = ax_no.get_legend_handles_labels()
+    if lon_no2_extras:
+        _lon_sites = ", ".join(lon_no2_extras.keys())
+        _no2_handles.append(
+            mlines.Line2D([], [], color=LON_COLOUR, alpha=0.4, linewidth=0.9,
+                          linestyle="-")
+        )
+        _no2_labels.append(f"London alt. sites ({_lon_sites})")
+    if nyc_no2_extras:
+        _nyc_sites = ", ".join(nyc_no2_extras.keys())
+        _no2_handles.append(
+            mlines.Line2D([], [], color=NYC_COLOUR, alpha=0.4, linewidth=0.9,
+                          linestyle="-")
+        )
+        _no2_labels.append(f"NYC alt. sites ({_nyc_sites})")
+    ax_no.legend(_no2_handles, _no2_labels, fontsize=8, framealpha=0.9,
+                 loc="upper right")
+
     ax_no.text(0.01, 0.96, "(b)", transform=ax_no.transAxes,
                fontsize=9, fontweight="bold", va="top")
 
@@ -702,5 +740,4 @@ def plot_air_quality(
         fig.savefig(str(out), dpi=150, bbox_inches="tight")
         logger.info("Saved air quality plot to %s", out)
 
-    return fig
     return fig
