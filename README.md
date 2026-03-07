@@ -42,7 +42,7 @@ to sun exposure. The UK has one of the lowest melanoma rates in the world;
 the US does not. The sun you're not getting in London is not purely a loss,
 although you should likely take vitamin D supplements in the winter.
 
-### 5. The daylight advantage for NYC is real — but small
+### 4. The daylight advantage for NYC is real — but small
 
 Ok, granted, you might say, but it is very dark in winter in London, 
 with  short days and dark commutes.
