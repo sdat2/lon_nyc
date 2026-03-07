@@ -3,27 +3,30 @@
 Design: single matched urban-background monitors on each side
 ---------------------------------------------------------
 Both cities are represented by a single, centrally-located, officially
-classified "urban background" monitoring site — the closest like-for-like
-comparison available.
+classified "urban background" monitoring site with a continuous instrument,
+giving near-complete daily records across the full 2015–2024 window.
 
 NYC — EPA pre-generated daily concentration files (no authentication):
   https://aqs.epa.gov/aqsweb/airdata/daily_{param}_{year}.zip
-  Parameter 88101 = PM2.5 FRM (µg/m³)   → IS 45 (Upper East Side, Manhattan)
-    School IS 45, 2351 1st Avenue, NY 10035 — central Manhattan, urban background,
-    full 10-year record.
-  Parameter 42602 = NO2 (ppb)            → Queens College 2 (Flushing, Queens)
-    65-30 Kissena Blvd, Queens — college campus, urban background, full 10-year
-    record.  No Manhattan NO2 monitor exists in the EPA network.
+  Parameter 88502 = PM2.5 Continuous (µg/m³) → CCNY (City College of New York)
+    160 Convent Ave, New York NY 10031 — Washington Heights / Hamilton Heights,
+    Manhattan.  Continuous TEOM/BAM instrument, 363–366 valid days/year.
+  Parameter 42602 = NO2 (ppb)               → IS 52 (South Bronx)
+    IS 52, Bronx — 3.5 km from CCNY, same neighbourhood character, continuous
+    analyser, full 10-year record.  No Manhattan NO2 monitor exists in the EPA
+    network.
     NO2 converted from ppb to µg/m³ (× 1.88 at 20 °C / 1 atm) for direct
     comparison with London.
 
 London — ERG / King's College London API (no authentication):
-  https://api.erg.ic.ac.uk/AirQuality/Data/Site/SiteCode=BL0/
+  https://api.erg.ic.ac.uk/AirQuality/Data/Site/SiteCode=KC1/
        StartDate={start}/EndDate={end}/Json
-  Site BL0 = Camden – Bloomsbury, WC1 — LAQN "Urban Background" classification,
-  continuously monitored since January 1992.  Hourly PM25 (µg/m³) and NO2
-  (µg/m³) are fetched by month, averaged to daily means, then resampled to
-  calendar-month means.
+  Site KC1 = Kensington and Chelsea – North Ken — LAQN "Urban Background"
+  classification, open since 1995, continuous PM25 and NO2 instruments,
+  near-complete data through end of 2024.  (BL0 Bloomsbury was used
+  previously but has an 11-month PM2.5 gap in 2021–22 and no data after
+  Aug 2023.)  Hourly species are fetched by month, averaged to daily means,
+  then resampled to calendar-month means.
 
 All data are cached in .cache/ to avoid re-downloading on subsequent runs.
 The London fetch takes ~2 minutes for a decade of data on first run.
@@ -57,17 +60,18 @@ START_YEAR = 2015
 END_YEAR = 2024
 
 # EPA parameter codes
-EPA_PM25 = 88101
+EPA_PM25 = 88502   # Continuous PM2.5 (BAM/TEOM) — near-complete daily record
+EPA_PM25_DURATION = "24-HR BLK AVG"   # rolling 24-h block average, one row/day
 EPA_NO2 = 42602
 
-# Single NYC urban-background monitors (matched to London Bloomsbury character)
-NYC_PM25_SITE = "IS 45"          # Upper East Side Manhattan — central, urban background
-NYC_NO2_SITE = "QUEENS COLLEGE 2"  # Flushing Queens campus — no Manhattan NO2 monitor exists
+# Single NYC urban-background monitors (continuous instruments)
+NYC_PM25_SITE = "CCNY"           # City College NY, 160 Convent Ave, Manhattan — continuous TEOM
+NYC_NO2_SITE = "IS 52"           # South Bronx, 3.5 km from CCNY — continuous analyser
 NYC_STATE = "New York"
 NYC_BOROUGHS = {"New York", "Kings", "Queens", "Bronx", "Richmond"}
 
 # London ERG site
-ERG_SITE = "BL0"   # Camden – Bloomsbury, urban background
+ERG_SITE = "KC1"   # Kensington & Chelsea – North Ken, Urban Background, continuous 2015–2024
 ERG_BASE = "https://api.erg.ic.ac.uk/AirQuality"
 
 # NO2 unit conversion: 1 ppb NO2 → µg/m³ at 20 °C / 1 atm
@@ -109,9 +113,10 @@ def get_nyc_daily(param: int, years: range, site_name: str) -> pd.DataFrame:
     """Return daily mean concentration for a single named NYC EPA monitor.
 
     Columns: date (datetime64), mean_conc (float).
-    Units: µg/m³ for PM2.5; ppb for NO2 (converted to µg/m³ by caller).
-    For PM2.5, only 24-HOUR sample duration rows are used to avoid mixing
-    instrument POCs.
+    Units: µg/m³ for PM2.5 (param 88502); ppb for NO2 (converted by caller).
+    For continuous PM2.5 (88502) the pre-aggregated '24-HR BLK AVG' rows are
+    used — one row per day, so no further grouping is needed.
+    For NO2 (42602) hourly '1 HOUR' daily summary rows are averaged.
     """
     frames = []
     for year in years:
@@ -125,9 +130,9 @@ def get_nyc_daily(param: int, years: range, site_name: str) -> pd.DataFrame:
         )
         site = df[mask].copy()
 
-        # For PM2.5, stick to the 24-hour FRM reference measurements
+        # For continuous PM2.5 (88502), use the pre-computed 24-hour block average
         if param == EPA_PM25 and "Sample Duration" in site.columns:
-            site = site[site["Sample Duration"] == "24 HOUR"]
+            site = site[site["Sample Duration"] == EPA_PM25_DURATION]
 
         if site.empty:
             continue
@@ -188,7 +193,7 @@ def _fetch_erg_month(site: str, year: int, month: int) -> pd.DataFrame:
 
 
 def get_london_daily(species: str, years: range) -> pd.DataFrame:
-    """Return daily mean concentration for London Bloomsbury (BL0).
+    """Return daily mean concentration for London KC1 (North Kensington).
 
     Columns: date (datetime64), mean_conc (float).
     """
@@ -246,7 +251,7 @@ def main() -> None:
     years = range(START_YEAR, END_YEAR + 1)
 
     # ---- NYC data ----
-    print(f"\nFetching NYC PM2.5 (EPA 88101, {NYC_PM25_SITE}) {START_YEAR}–{END_YEAR} …")
+    print(f"\nFetching NYC PM2.5 (EPA 88502, {NYC_PM25_SITE}) {START_YEAR}–{END_YEAR} …")
     nyc_pm25_daily = get_nyc_daily(EPA_PM25, years, NYC_PM25_SITE)
     nyc_pm25_monthly = to_monthly(nyc_pm25_daily)
 
@@ -257,11 +262,11 @@ def main() -> None:
     nyc_no2_monthly = to_monthly(nyc_no2_daily)
 
     # ---- London data ----
-    print(f"\nFetching London PM2.5 (ERG BL0) {START_YEAR}–{END_YEAR} …")
+    print(f"\nFetching London PM2.5 (ERG {ERG_SITE}) {START_YEAR}–{END_YEAR} …")
     lon_pm25_daily = get_london_daily("PM25", years)
     lon_pm25_monthly = to_monthly(lon_pm25_daily)
 
-    print(f"\nFetching London NO2 (ERG BL0) {START_YEAR}–{END_YEAR} …")
+    print(f"\nFetching London NO2 (ERG {ERG_SITE}) {START_YEAR}–{END_YEAR} …")
     lon_no2_daily = get_london_daily("NO2", years)
     lon_no2_monthly = to_monthly(lon_no2_daily)
 
@@ -286,9 +291,9 @@ def main() -> None:
         output_path=OUTPUT_PATH,
         start_year=START_YEAR,
         end_year=END_YEAR,
-        nyc_pm25_label=f"NYC ({NYC_PM25_SITE}, Manhattan)",
-        nyc_no2_label=f"NYC ({NYC_NO2_SITE}, Queens)",
-        lon_label=f"London ({ERG_SITE} Bloomsbury)",
+        nyc_pm25_label=f"NYC ({NYC_PM25_SITE} CCNY, Manhattan)",
+        nyc_no2_label=f"NYC ({NYC_NO2_SITE}, S. Bronx)",
+        lon_label=f"London ({ERG_SITE} N. Kensington)",
     )
     print("Done.")
 
