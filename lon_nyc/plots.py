@@ -555,7 +555,6 @@ def plot_air_quality(
     output_path: str | Path | None = None,
     start_year: int | None = None,
     end_year: int | None = None,
-    rolling_months: int = 3,
     nyc_pm25_label: str = "NYC (CCNY, Manhattan)",
     nyc_no2_label: str = "NYC (IS 52, S. Bronx)",
     lon_label: str = "London (KC1 N. Kensington)",
@@ -565,9 +564,8 @@ def plot_air_quality(
     """Two-panel monthly air quality time series: PM2.5 (top) and NO2 (bottom).
 
     Both panels share the same x-axis (calendar month, 2015–2024).
-    London is drawn in red, NYC in blue.  A thin semi-transparent line shows
-    raw monthly means; a thick line shows the centred ``rolling_months``-month
-    rolling mean.  The June 2023 Canadian wildfire smoke event is annotated on
+    London is drawn in red, NYC in blue.  Raw monthly means are plotted
+    directly.  The June 2023 Canadian wildfire smoke event is annotated on
     the PM2.5 panel.
 
     Parameters
@@ -581,14 +579,12 @@ def plot_air_quality(
         If given, the figure is saved here (PNG at 150 dpi).
     start_year, end_year:
         Used in the figure title.
-    rolling_months:
-        Window size for the centred rolling mean (default 3 months).
     nyc_pm25_label, nyc_no2_label, lon_label:
         Legend labels for the primary series.
     nyc_no2_extras, lon_no2_extras:
         Optional dicts mapping ``label → DataFrame`` for additional urban-
         background NO2 sites.  Each is drawn as a single very thin, low-alpha
-        line (no rolling mean, no legend entry) to show the within-city spread.
+        line to show the within-city spread.
 
     Returns
     -------
