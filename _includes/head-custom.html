@@ -1,0 +1,116 @@
+<style>
+  :root {
+    --font-latex-serif: "Latin Modern Roman", "CMU Serif", "Computer Modern Serif", "Times New Roman", serif;
+    --cambridge-blue: #a3c1ad;
+    --cambridge-blue-deep: #6f8f82;
+    --ink: #132838;
+    --ink-soft: #345469;
+    --panel: rgba(255, 255, 255, 0.9);
+    --line: #d4e2dd;
+    --shadow: 0 14px 32px rgba(14, 39, 56, 0.12);
+  }
+
+  body {
+    font-family: var(--font-latex-serif);
+    line-height: 1.66;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(163, 193, 173, 0.26), transparent 36%),
+      radial-gradient(circle at 100% 20%, rgba(250, 200, 98, 0.16), transparent 34%),
+      linear-gradient(180deg, #f3f8f5, #fffaf2);
+  }
+
+  .page-header {
+    background: linear-gradient(120deg, rgba(163, 193, 173, 0.95), rgba(111, 143, 130, 0.95));
+    border-bottom: 1px solid rgba(18, 36, 50, 0.12);
+  }
+
+  .project-name,
+  .project-tagline,
+  .main-content h1,
+  .main-content h2,
+  .main-content h3,
+  .main-content h4,
+  .main-content h5,
+  .main-content h6 {
+    font-family: var(--font-latex-serif);
+    text-shadow: none;
+  }
+
+  .project-name,
+  .main-content h1,
+  .main-content h2,
+  .main-content h3,
+  .main-content h4,
+  .main-content h5,
+  .main-content h6 {
+    color: #24485a;
+  }
+
+  .project-tagline {
+    color: #2f5968;
+    opacity: 1;
+  }
+
+  .main-content,
+  .site-footer {
+    max-width: min(960px, calc(100% - 2.2rem));
+  }
+
+  .main-content {
+    margin-top: 1.4rem;
+    margin-bottom: 2.3rem;
+    padding: clamp(1rem, 2vw, 2rem);
+    background: var(--panel);
+    border: 1px solid rgba(42, 74, 64, 0.11);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .main-content p,
+  .main-content li,
+  .main-content td,
+  .main-content th {
+    font-size: 1.03rem;
+  }
+
+  .main-content a,
+  .site-footer a {
+    color: #3b6e82;
+  }
+
+  .main-content a:hover,
+  .main-content a:focus,
+  .site-footer a:hover,
+  .site-footer a:focus {
+    color: #2f5a6a;
+  }
+
+  .main-content table th {
+    background: rgba(163, 193, 173, 0.24);
+  }
+
+  .main-content img {
+    border-radius: 10px;
+    border: 1px solid rgba(42, 74, 64, 0.13);
+  }
+
+  .site-footer {
+    color: var(--ink-soft);
+    border-top: 1px solid rgba(52, 84, 105, 0.2);
+  }
+
+  @media (max-width: 760px) {
+    .main-content {
+      border-radius: 14px;
+      padding: 1rem;
+    }
+
+    .main-content p,
+    .main-content li,
+    .main-content td,
+    .main-content th {
+      font-size: 1rem;
+    }
+  }
+</style>
